@@ -1,6 +1,6 @@
 # AI Private Blogging Feedback
 
-> A private writing workspace that turns raw thoughts into clearer thinking through three fixed AI roles: Editor (clarity), Skeptic (logic), and Coach (direction). The system is intentionally non-social and non-gamified. It is designed to improve reasoning, not boost mood.
+A private writing workspace that uses three fixed AI agents to improve thinking clarity. Write entries, receive independent feedback from Editor (clarity), Skeptic (logic), and Coach (direction). Non-social, non-gamified, focused on reasoning over comfort.
 
 ---
 
@@ -9,101 +9,62 @@
 ```bash
 cd apps/web
 npm install
-cp .env.example .env.local  # Configure your environment variables
+```
+
+Create `apps/web/.env.local`:
+```env
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB=ai_private_blog
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=xiaomi/mimo-v2-flash:free
+OPENROUTER_APP_URL=http://localhost:3000
+OPENROUTER_APP_NAME=AI Private Blogging Feedback
+```
+
+```bash
 npm run dev
 ```
 
-Open `http://localhost:3000` to start writing.
-
----
-
-## Overview
-
-### What This Is
-- **Private thinking space** - Your entries stay local and private
-- **Multi-agent reflection** - Three independent AI perspectives on your writing
-- **Clarity-focused** - Designed to improve reasoning, not provide comfort
-
-### What This Is Not
-- Social platform or public blog
-- Journaling streak tracker
-- Productivity gamification tool
-- Chat interface or conversation system
+Open `http://localhost:3000`.
 
 ---
 
 ## How It Works
 
-1. **Write** an entry (title optional)
-2. **Save** the entry to your local database
-3. **Reflect** to receive three independent agent responses
-4. **Review** and decide your next step
+1. Write an entry (title optional)
+2. Save to MongoDB
+3. Click Reflect to generate three agent responses
+4. Review feedback (streamed agent-by-agent)
 
 ![Application Screenshot](apps/web/public/screenshot.png)
 
-### The Three Agents
+### Agent Roles
 
-| Agent | Role | Purpose |
-|-------|------|---------|
-| **Editor** | Clarity | Improves structure and clarity without changing meaning |
-| **Skeptic** | Logic | Stress-tests your thinking with pointed challenges |
-| **Coach** | Direction | Helps you choose direction by making trade-offs explicit |
+| Agent | Output Format | Purpose |
+|-------|---------------|---------|
+| **Editor** | SUMMARY, FIXES, REWRITE | Improves clarity and structure without changing meaning |
+| **Skeptic** | CORE CLAIM, CHALLENGES, TEST | Stress-tests thinking with 3 pointed challenges |
+| **Coach** | INTENT, OPTIONS, RECOMMENDATION | Makes trade-offs explicit, forces narrowing |
 
 ---
 
 ## Features
 
-- Three fixed agents with distinct, non-overlapping roles
-- Read-only reflection output (no chat UI)
-- Entry history with quick retrieval
-- Streaming reflections (agent-by-agent)
-- JSON snapshots saved per entry for auditability
-- Private by design (no social features)
+- **Three independent agents** - Each uses distinct prompts, no cross-agent communication
+- **Streaming responses** - Results appear agent-by-agent via `/reflect/stream` endpoint
+- **JSON snapshots** - Each reflection saved to `apps/web/reflections/<entryId>.json`
+- **Entry management** - Create, update, delete entries; updating clears old feedback
+- **Read-only UI** - No chat interface; feedback is displayed, not conversational
 
 ---
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
-- **UI**: React 19, TypeScript, Tailwind CSS
-- **Database**: MongoDB
-- **AI**: OpenRouter API
-
----
-
-## Setup
-
-### Prerequisites
-
-- Node.js 18+ 
-- MongoDB database (local or Atlas)
-- OpenRouter API key
-
-### Installation
-
-1. **Clone and install**
-   ```bash
-   git clone https://github.com/haseebraza715/forkpoint-.git
-   cd forkpoint-/apps/web
-   npm install
-   ```
-
-2. **Configure environment**
-   
-   Create `apps/web/.env.local`:
-   ```env
-   MONGODB_URI=your_mongodb_connection_string
-   MONGODB_DB=ai_private_blog
-   OPENROUTER_API_KEY=your_openrouter_api_key
-   OPENROUTER_MODEL=xiaomi/mimo-v2-flash:free
-   OPENROUTER_APP_URL=http://localhost:3000
-   OPENROUTER_APP_NAME=AI Private Blogging Feedback
-   ```
-
-3. **Run the app**
-   ```bash
-   npm run dev
-   ```
+- Next.js 16 (App Router)
+- React 19, TypeScript
+- Tailwind CSS
+- MongoDB
+- OpenRouter API
 
 ---
 
@@ -112,42 +73,37 @@ Open `http://localhost:3000` to start writing.
 ```
 apps/web/
 ├── app/
-│   ├── api/
-│   │   └── entries/               # API routes
-│   ├── layout.tsx                 # Root layout
-│   ├── page.tsx                   # Main UI
-│   └── globals.css                # Global styles
+│   ├── api/entries/          # REST API routes
+│   ├── page.tsx              # Main UI component
+│   └── layout.tsx            # Root layout
 ├── lib/
-│   ├── mongodb.ts                 # MongoDB client
-│   ├── openrouter.ts              # OpenRouter API client
-│   ├── prompts.ts                 # Agent prompts
-│   └── reflection-store.ts        # JSON snapshot writer
-└── reflections/                   # Saved reflection JSON files
+│   ├── mongodb.ts            # MongoDB connection
+│   ├── openrouter.ts         # OpenRouter API client
+│   ├── prompts.ts            # Agent prompt definitions
+│   └── reflection-store.ts   # JSON snapshot writer
+└── reflections/              # Generated JSON snapshots
 ```
 
 ---
 
-## API Reference
+## API Endpoints
 
-### Entries
+**Entries**
+- `GET /api/entries` - Returns array of recent entries
+- `POST /api/entries` - Creates entry, returns `{ entry: Entry }`
+- `GET /api/entries/[id]` - Returns `{ entry: Entry, feedback: Feedback[] }`
+- `PATCH /api/entries/[id]` - Updates entry, clears old feedback
+- `DELETE /api/entries/[id]` - Deletes entry and all feedback
 
-- `GET /api/entries` - List recent entries
-- `POST /api/entries` - Create new entry
-- `GET /api/entries/[id]` - Fetch entry with feedback
-- `PATCH /api/entries/[id]` - Update entry (clears old feedback)
-- `DELETE /api/entries/[id]` - Delete entry and feedback
-
-### Reflection
-
-- `POST /api/entries/[id]/reflect` - Generate reflections (non-streaming)
-- `POST /api/entries/[id]/reflect/stream` - Generate reflections (streaming)
+**Reflection**
+- `POST /api/entries/[id]/reflect` - Synchronous reflection, returns all feedback
+- `POST /api/entries/[id]/reflect/stream` - Streams feedback as it arrives (SSE)
 
 ---
 
 ## Data Model
 
-### Entry Schema
-
+**Entry**
 ```typescript
 {
   _id: ObjectId
@@ -160,8 +116,7 @@ apps/web/
 }
 ```
 
-### Feedback Schema
-
+**Feedback**
 ```typescript
 {
   _id: ObjectId
@@ -176,14 +131,14 @@ apps/web/
 
 ---
 
-## How Reflections Work
+## Reflection Process
 
-1. The same entry text is sent to three agents simultaneously
-2. Each agent uses a distinct prompt with specific constraints
-3. Responses are generated independently (no cross-agent communication)
-4. Results are saved to MongoDB `feedback` collection
-5. A JSON snapshot is written to `apps/web/reflections/<entryId>.json`
-6. The UI streams agent results as they arrive
+1. Entry text sent to three agents simultaneously via OpenRouter API
+2. Each agent uses distinct prompt from `lib/prompts.ts`
+3. Responses generated independently (parallel, no communication)
+4. Results saved to MongoDB `feedback` collection
+5. JSON snapshot written to `apps/web/reflections/<entryId>.json`
+6. UI streams results via Server-Sent Events
 
 ---
 
@@ -208,29 +163,45 @@ flowchart TD
 
 | Issue | Solution |
 |-------|----------|
-| Reflection fails immediately | Verify `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are set correctly |
-| Entry load fails | Check `MONGODB_URI` and `MONGODB_DB`, ensure database is reachable |
-| No streaming output | Check dev server console for errors; verify streaming endpoint is used |
-| Build errors | Ensure all environment variables are set in `.env.local` |
+| Reflection fails immediately | Check `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` in `.env.local` |
+| Entry load fails | Verify `MONGODB_URI` and `MONGODB_DB`, test MongoDB connection |
+| No streaming output | Check browser console and dev server logs; ensure using `/reflect/stream` endpoint |
+| Build fails | Verify all environment variables are set; check TypeScript errors |
 
 ---
 
 ## Reflection Snapshots
 
-After reflection completes, a JSON snapshot is written to `apps/web/reflections/<entryId>.json`. This includes:
+After reflection completes, a JSON file is written to `apps/web/reflections/<entryId>.json` containing:
 
-- Complete entry content
-- All agent feedback
-- Metadata (timestamps, model, prompt version)
+- Complete entry content (title, body, metadata)
+- All three agent feedback responses
+- Timestamps, model name, prompt version
 
-Use these snapshots for:
-- Local backup
-- Auditability
-- Offline review
-- Analysis
+Use for local backup, auditability, or offline analysis.
 
 ---
 
 ## License
 
-MIT
+MIT License
+
+Copyright (c) 2024 Haseeb Raza
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
