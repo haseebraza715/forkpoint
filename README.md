@@ -129,18 +129,19 @@ Open `http://localhost:3000`.
 - **Entry load fails**: verify `MONGODB_URI` and `MONGODB_DB` and that the DB is reachable.
 - **No streaming output**: check the dev server console for errors; streaming uses `reflect/stream`.
 
-## Diagram
+## Architecture Diagram
+
 ```mermaid
 flowchart TD
-  A[User writes entry] --> B[POST /api/entries]
-  B --> C[(MongoDB: entries)]
-  A --> D[POST /api/entries/{id}/reflect/stream]
-  D --> E[OpenRouter API]
-  E --> F[Agent responses]
-  F --> G[(MongoDB: feedback)]
-  F --> H[Write JSON snapshot]
-  G --> I[UI streams results]
-  H --> I
+    A["User writes entry"] --> B["POST /api/entries"]
+    B --> C[("MongoDB: entries")]
+    A --> D["POST /api/entries/id/reflect/stream"]
+    D --> E["OpenRouter API"]
+    E --> F["Agent responses"]
+    F --> G[("MongoDB: feedback")]
+    F --> H["Write JSON snapshot"]
+    G --> I["UI streams results"]
+    H --> I
 ```
 
 ## License
