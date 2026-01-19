@@ -39,6 +39,8 @@ Open `http://localhost:3000` to start writing.
 3. **Reflect** to receive three independent agent responses
 4. **Review** and decide your next step
 
+![Application Screenshot](apps/web/public/screenshot.png)
+
 ### The Three Agents
 
 | Agent | Role | Purpose |
