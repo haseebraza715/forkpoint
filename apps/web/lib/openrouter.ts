@@ -7,6 +7,7 @@ type OpenRouterRequest = {
   model: string;
   messages: OpenRouterMessage[];
   temperature?: number;
+  max_tokens?: number;
 };
 
 type OpenRouterResponse = {
