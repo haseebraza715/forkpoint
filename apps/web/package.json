@@ -6,9 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "eval:calibrate": "node scripts/eval-calibrate.mjs",
+    "eval:nightly": "node scripts/eval-batch.mjs --mode=recent --limit=20",
+    "eval:pr": "node scripts/eval-batch.mjs --mode=random --limit=5 --fail-on=fail,flag",
+    "eval:gate": "node scripts/eval-calibrate.mjs && node scripts/eval-batch.mjs --mode=recent --limit=10 --fail-on=fail,flag"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "mongodb": "^7.0.0",
     "next": "16.1.3",
     "react": "19.2.3",
