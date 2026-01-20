@@ -131,6 +131,7 @@ async function run() {
   function validateEval(result, transcript) {
     const errors = [];
     const violations = Array.isArray(result.violations) ? result.violations : [];
+    result.violations = Array.from(new Set(violations.filter((item) => allowedViolations.has(item))));
     const invalidViolations = violations.filter((item) => !allowedViolations.has(item));
     if (invalidViolations.length > 0) {
       errors.push(`invalid_violations:${invalidViolations.join(",")}`);
