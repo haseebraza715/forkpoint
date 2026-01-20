@@ -301,6 +301,12 @@ async function run() {
     return Math.max(0, Math.min(100, 100 - totalPenalty));
   }
 
+  function sanitizeViolations(violations) {
+    const list = Array.isArray(violations) ? violations : [];
+    const filtered = list.filter((item) => allowedViolations.has(item));
+    return Array.from(new Set(filtered));
+  }
+
   for (const entry of articles) {
     const userText = entry.title ? `Title: ${entry.title}\n\n${entry.body}` : entry.body;
     const outputs = {};
@@ -336,7 +342,8 @@ async function run() {
 
     // Override model field with actual model used (don't trust AI's model field)
     evalResult.model = evalModel;
-    evalResult.overallScore = normalizeScore(evalResult.violations ?? []);
+    evalResult.violations = sanitizeViolations(evalResult.violations);
+    evalResult.overallScore = normalizeScore(evalResult.violations);
 
     const validation = validateEval(evalResult, transcript);
     if (!validation.ok) {
@@ -363,7 +370,8 @@ async function run() {
         continue;
       }
       evalResult.model = evalModel;
-      evalResult.overallScore = normalizeScore(evalResult.violations ?? []);
+      evalResult.violations = sanitizeViolations(evalResult.violations);
+      evalResult.overallScore = normalizeScore(evalResult.violations);
       
       // Re-validate after retry
       const retryValidation = validateEval(evalResult, transcript);
