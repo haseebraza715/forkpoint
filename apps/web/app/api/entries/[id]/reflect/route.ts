@@ -5,7 +5,7 @@ import { callOpenRouter } from "@/lib/openrouter";
 import { PROMPT_VERSION, PROMPTS, SHARED_RULES } from "@/lib/prompts";
 import { writeReflectionSnapshot } from "@/lib/reflection-store";
 
-const AGENTS = ["editor", "skeptic", "coach"] as const;
+const AGENTS = ["editor", "definer", "skeptic", "coach"] as const;
 
 type AgentName = (typeof AGENTS)[number];
 
