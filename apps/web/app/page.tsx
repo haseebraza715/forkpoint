@@ -17,19 +17,19 @@ type Entry = {
 type Feedback = {
   id?: string;
   entryId: string;
-  agent: "editor" | "skeptic" | "coach";
+  agent: "editor" | "definer" | "skeptic" | "coach";
   content: string;
   createdAt: string;
   model?: string;
   promptVersion?: string;
 };
 
-const AGENT_META: Record<Feedback["agent"], { label: string; role: string }> =
-  {
-    editor: { label: "Editor", role: "Clarity" },
-    skeptic: { label: "Skeptic", role: "Logic" },
-    coach: { label: "Coach", role: "Direction" }
-  };
+const AGENT_META: Record<Feedback["agent"], { label: string; role: string }> = {
+  editor: { label: "Editor", role: "Clarity" },
+  definer: { label: "Definer", role: "Definitions" },
+  skeptic: { label: "Skeptic", role: "Logic" },
+  coach: { label: "Coach", role: "Direction" }
+};
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -38,6 +38,14 @@ function formatDate(value: string) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function getPreviewLine(content: string) {
+  const lines = content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines[0] ?? "No content returned.";
 }
 
 export default function Home() {
@@ -50,6 +58,9 @@ export default function Home() {
   const [isReflecting, setIsReflecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
+  const [agentFilter, setAgentFilter] = useState<Feedback["agent"] | "all">(
+    "all"
+  );
 
   const isEditingExisting = Boolean(selectedEntry?.id);
   const isDirty = selectedEntry
@@ -57,9 +68,16 @@ export default function Home() {
     : true;
 
   const sortedFeedback = useMemo(() => {
-    const order = { editor: 0, skeptic: 1, coach: 2 };
+    const order = { editor: 0, definer: 1, skeptic: 2, coach: 3 };
     return [...feedback].sort((a, b) => order[a.agent] - order[b.agent]);
   }, [feedback]);
+
+  const filteredFeedback = useMemo(() => {
+    if (agentFilter === "all") {
+      return sortedFeedback;
+    }
+    return sortedFeedback.filter((item) => item.agent === agentFilter);
+  }, [agentFilter, sortedFeedback]);
 
   useEffect(() => {
     void loadEntries();
@@ -302,7 +320,7 @@ export default function Home() {
 
       <main className="mx-auto mt-10 grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)]">
+          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
             <div className="flex items-center justify-between">
               <h2 className="font-[var(--font-display)] text-xl font-semibold">
                 New entry
@@ -358,16 +376,21 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[var(--stroke)] bg-white/70 p-6 shadow-[var(--shadow-card)]">
-            <div className="flex items-center justify-between">
-              <h2 className="font-[var(--font-display)] text-lg font-semibold">
-                Past entries
-              </h2>
-              <span className="text-xs text-[var(--muted)]">
+          <div className="rounded-3xl border border-[var(--stroke)] bg-white/70 p-6 shadow-[var(--shadow-card)] animate-rise">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-[var(--font-display)] text-lg font-semibold">
+                  Past entries
+                </h2>
+                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                  Latest first
+                </p>
+              </div>
+              <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {entries.length} total
               </span>
             </div>
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="mt-5 flex flex-col gap-3 border-l border-[var(--stroke)] pl-6">
               {entries.length === 0 && (
                 <p className="text-sm text-[var(--muted)]">
                   No entries yet. Start with a real thought.
@@ -377,19 +400,28 @@ export default function Home() {
                 <div
                   key={entry.id}
                   onClick={() => loadEntry(entry.id)}
-                  className={`flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
+                  className={`relative flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
                     selectedEntry?.id === entry.id
-                      ? "border-[var(--accent)] bg-[var(--card)]"
-                      : "border-transparent bg-white/60 hover:border-[var(--stroke)]"
+                      ? "border-[var(--accent)] bg-[var(--card)] shadow-[0_20px_50px_rgba(54,31,17,0.08)]"
+                      : "border-transparent bg-white/60 hover:border-[var(--stroke)] hover:bg-white/80"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold">
-                      {entry.title || "Untitled entry"}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                  <span className="absolute -left-[34px] top-6 h-3 w-3 rounded-full border border-[var(--stroke)] bg-[var(--card)]" />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold">
+                        {entry.title || "Untitled entry"}
+                      </span>
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        {formatDate(entry.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-[var(--stroke)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
                         {entry.status}
+                      </span>
+                      <span className="rounded-full border border-[var(--stroke)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+                        {entry.wordCount} words
                       </span>
                       <button
                         className="text-xs font-semibold text-[var(--muted)] transition hover:text-[var(--accent)]"
@@ -402,10 +434,6 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                    <span>{entry.wordCount} words</span>
-                    <span>{formatDate(entry.createdAt)}</span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -413,27 +441,48 @@ export default function Home() {
         </section>
 
         <section className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)]">
-            <h2 className="font-[var(--font-display)] text-xl font-semibold">
-              Reflection
-            </h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              Each agent responds independently. Read slowly.
-            </p>
+          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="font-[var(--font-display)] text-xl font-semibold">
+                  Reflection
+                </h2>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  Each agent responds independently. Read slowly.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["all", "editor", "definer", "skeptic", "coach"] as const).map(
+                  (agent) => (
+                    <button
+                      key={agent}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                        agentFilter === agent
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                          : "border-[var(--stroke)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      }`}
+                      onClick={() => setAgentFilter(agent)}
+                    >
+                      {agent === "all" ? "All" : AGENT_META[agent].label}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
           </div>
 
-          {sortedFeedback.length === 0 && (
+          {filteredFeedback.length === 0 && (
             <div className="rounded-3xl border border-dashed border-[var(--stroke)] bg-white/70 p-6 text-sm text-[var(--muted)]">
               No feedback yet. Save an entry, then click Reflect.
             </div>
           )}
 
-          {sortedFeedback.map((item) => (
-            <article
+          {filteredFeedback.map((item) => (
+            <details
               key={`${item.entryId}-${item.agent}`}
-              className="rounded-3xl border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow-card)]"
+              className="group rounded-3xl border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[0_40px_90px_rgba(54,31,17,0.12)] animate-rise"
             >
-              <div className="flex items-center justify-between gap-4">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
                 <div>
                   <h3 className="font-[var(--font-display)] text-lg font-semibold">
                     {AGENT_META[item.agent].label}
@@ -442,12 +491,21 @@ export default function Home() {
                     {AGENT_META[item.agent].role}
                   </p>
                 </div>
-                <span className="text-xs text-[var(--muted)]">
-                  {formatDate(item.createdAt)}
-                </span>
+                <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+                  <span>{formatDate(item.createdAt)}</span>
+                  <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
+                    <span className="group-open:hidden">Expand</span>
+                    <span className="hidden group-open:inline">Collapse</span>
+                  </span>
+                </div>
+              </summary>
+              <div className="mt-4 text-sm text-[var(--muted)] group-open:hidden">
+                {getPreviewLine(item.content)}
               </div>
-              <div className="mt-4">{renderMarkdown(item.content)}</div>
-            </article>
+              <div className="mt-5 border-t border-[var(--stroke)] pt-5">
+                {renderMarkdown(item.content)}
+              </div>
+            </details>
           ))}
         </section>
       </main>
