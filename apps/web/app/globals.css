@@ -26,3 +26,22 @@ body {
   font-family: var(--font-body), serif;
   min-height: 100vh;
 }
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: fadeUp 0.5s ease both;
+}
