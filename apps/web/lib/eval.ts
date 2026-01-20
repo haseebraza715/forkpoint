@@ -98,6 +98,12 @@ function normalizeScore(violations: string[]) {
   return Math.max(0, Math.min(100, 100 - totalPenalty));
 }
 
+function sanitizeViolations(violations: string[] | undefined) {
+  const list = Array.isArray(violations) ? violations : [];
+  const filtered = list.filter((item) => ALLOWED_VIOLATIONS.has(item));
+  return Array.from(new Set(filtered));
+}
+
 function validateEvalResult(result: EvalResult, transcript: string) {
   const errors: string[] = [];
 
@@ -109,7 +115,8 @@ function validateEvalResult(result: EvalResult, transcript: string) {
     errors.push("invalid_score");
   }
 
-  const violations = Array.isArray(result.violations) ? result.violations : [];
+  const violations = sanitizeViolations(result.violations);
+  result.violations = violations;
   const invalidViolations = violations.filter((item) => !ALLOWED_VIOLATIONS.has(item));
   if (invalidViolations.length > 0) {
     errors.push(`invalid_violations:${invalidViolations.join(",")}`);
@@ -220,7 +227,8 @@ export async function runEval(input: EvalInput) {
     }
   }
 
-  parsed.overallScore = normalizeScore(parsed.violations ?? []);
+  parsed.violations = sanitizeViolations(parsed.violations);
+  parsed.overallScore = normalizeScore(parsed.violations);
   const validation = validateEvalResult(parsed, input.transcript);
   if (!validation.ok) {
     const retryContent = await callOpenRouter({
@@ -242,7 +250,8 @@ export async function runEval(input: EvalInput) {
       }
     }
 
-    parsed.overallScore = normalizeScore(parsed.violations ?? []);
+    parsed.violations = sanitizeViolations(parsed.violations);
+    parsed.overallScore = normalizeScore(parsed.violations);
     const retryValidation = validateEvalResult(parsed, input.transcript);
     if (!retryValidation.ok) {
       throw new Error(`Eval output failed validation: ${retryValidation.errors.join(", ")}`);
