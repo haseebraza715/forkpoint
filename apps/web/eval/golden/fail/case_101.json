@@ -1,0 +1,14 @@
+{
+  "entry": {
+    "title": "Ambivalent execution",
+    "body": "I think I keep postponing finishing because I'm scared it will expose that I'm not actually good at this.",
+    "notes": "Designed to trigger editor causal inference + format break"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nDriven by fear of failure, I postpone finishing because I want to protect my self-image.\nFIXES:\n\n- \"postponing finishing\": be specific about how it shows up.\nREWRITE:\nI keep postponing finishing because I'm scared it will expose that I'm not actually good at this."
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["editor_causal_inference", "format_broken"]
+  }
+}

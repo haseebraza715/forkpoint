@@ -1,0 +1,13 @@
+{
+  "entry": {
+    "title": "Overthinking decisions",
+    "body": "I keep revisiting the same choice because I don't want to close off options.",
+    "notes": "Short but sufficient"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nI keep revisiting a decision because I do not want to close off options.\nFIXES:\n- \"revisiting\": specify frequency or triggers to reduce ambiguity.\n- \"same choice\": name the decision to make the issue concrete.\n- \"close off options\": clarify which options feel most costly to lose.\nREWRITE:\nI keep revisiting the same decision because I do not want to close off options."
+  },
+  "expected": {
+    "verdict": "pass"
+  }
+}

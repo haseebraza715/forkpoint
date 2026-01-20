@@ -1,0 +1,15 @@
+{
+  "entry": {
+    "title": "Ship or hide",
+    "body": "I'm stuck between keeping my options open and committing to a single idea.",
+    "notes": "Designed to trigger coach identity injection and skeptic over-explains"
+  },
+  "outputs": {
+    "skeptic": "CORE CLAIM:\nYou are afraid of losing your identity as a creative person, so you avoid committing to one idea.\nCHALLENGES:\n- \"stuck between keeping my options open\": this could just be poor prioritization, not identity fear. That matters because the fix would be scheduling, not self-concept work.\n- \"committing to a single idea\": you might be underestimating the cost of switching because you haven't tested constraints. That matters because your conclusion about being stuck may be premature.\n- \"stuck\": this could be a preference for novelty rather than a problem. That matters because you may be pathologizing a valid style.\nTEST:\nDo one 2-hour block per day for 7 days on a single idea and log how you feel.",
+    "coach": "INTENT:\nYou are struggling with the identity shift from explorer to executor.\nOPTIONS:\n- Commit to one idea for a week. Done looks like a finished draft.\n- Keep exploring but set a deadline. Done looks like a decision.\n- Choose the safest idea. Done looks like quick progress.\nRECOMMENDATION:\nAdopt the identity of a shipper and close off exploration for a week.\nFOR THE NEXT 7 DAYS, STOP:\n- Brainstorming new ideas\n- Reading about alternatives"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["coach_identity_injection", "skeptic_over_explains"]
+  }
+}

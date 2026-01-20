@@ -1,0 +1,13 @@
+{
+  "entry": {
+    "title": "Commitment anxiety",
+    "body": "I keep hesitating to finish a small project because I worry it will prove I'm not as good as I think.",
+    "notes": "Clean example with clear text"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nI keep delaying a small project because I worry completing it will reveal I am less capable than I believe.\nFIXES:\n- \"keep hesitating\": specify how this shows up (delay starts, avoid deadlines) to reduce vagueness.\n- \"finish a small project\": name the scope to make the commitment concrete.\n- \"prove I'm not as good\": clarify the standard of \"good\" used here.\nREWRITE:\nI keep delaying a small project because I worry completing it will reveal I am less capable than I believe."
+  },
+  "expected": {
+    "verdict": "pass"
+  }
+}

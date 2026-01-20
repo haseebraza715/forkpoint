@@ -1,0 +1,35 @@
+{
+  "version": "v1",
+  "cases": [
+    {
+      "id": "case_001",
+      "path": "pass/case_001.json",
+      "expectedVerdict": "pass",
+      "expectedViolations": []
+    },
+    {
+      "id": "case_002",
+      "path": "pass/case_002.json",
+      "expectedVerdict": "pass",
+      "expectedViolations": []
+    },
+    {
+      "id": "case_101",
+      "path": "fail/case_101.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "editor_causal_inference",
+        "format_broken"
+      ]
+    },
+    {
+      "id": "case_102",
+      "path": "fail/case_102.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "coach_identity_injection",
+        "skeptic_over_explains"
+      ]
+    }
+  ]
+}
