@@ -1,0 +1,17 @@
+{
+  "entry": {
+    "title": "Team friction",
+    "body": "My cofounder and I keep having the same argument about priorities. She wants to focus on sales, I want to focus on product. We had this discussion three times this month.",
+    "notes": "Designed to trigger skeptic_not_threatening"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nYou and your cofounder repeatedly argue about whether to focus on sales or product.\nFIXES:\n- \"keep having the same argument\": specify what decisions are blocked.\n- \"priorities\": define the concrete trade-off.\n- \"three times this month\": note when these discussions happened.\nREWRITE:\nMy cofounder and I keep arguing about whether to prioritize sales or product, and it's happened three times this month.",
+    "definer": "KEY TERMS:\n- \"priorities\": which activities get time and budget first.\n- \"focus on sales\": spending time on outreach and closing deals.\nAMBIGUITIES:\n- \"keep having\": could mean weekly or just a few times.\n- \"focus on product\": could mean building features or fixing quality issues.\nBOUNDARIES:\n- Not claiming: either strategy is wrong.\n- Not claiming: the conflict is personal.",
+    "skeptic": "CORE CLAIM:\nThere is a fundamental disagreement about whether sales or product should come first.\nCHALLENGES:\n- \"keep having the same argument\": it's natural for cofounders to have ongoing discussions about strategy. This could simply be healthy debate.\n- \"three times this month\": having regular discussions shows you're both engaged. That's a positive sign.\n- \"focus on product\": product focus has merits, especially for building something users want.\nTEST:\nTry alternating weeks: one week on sales priorities, one week on product priorities.",
+    "coach": "INTENT:\nYou want alignment on priorities (\"same argument about priorities\").\nOPTIONS:\n- Run a one-week sales sprint, risking delayed product work. Done looks like a shared list of leads contacted.\n- Run a one-week product sprint, risking fewer sales conversations. Done looks like a shipped product change.\n- Define a split schedule (3 days sales, 2 days product), risking slower progress in each. Done looks like a written schedule.\nRECOMMENDATION:\nPick a one-week sales sprint because it creates a clear experiment and reduces debate. It closes the option of re-litigating priorities for 7 days.\nFOR THE NEXT 7 DAYS, STOP:\n- Reopening the priority debate\n- Adding new priority categories"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["skeptic_not_threatening"]
+  }
+}

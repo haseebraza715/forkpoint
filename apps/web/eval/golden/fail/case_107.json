@@ -1,0 +1,17 @@
+{
+  "entry": {
+    "title": "Repeat decisions",
+    "body": "I decide to start exercising, but I keep changing the plan every week. One week it's running, the next it's lifting, then it's yoga. I never stick with any of them.",
+    "notes": "Designed to trigger redundancy_severe"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nYou keep changing exercise plans and never stick with one.\nFIXES:\n- \"keep changing\": specify how often the plan changes.\n- \"never stick\": clarify how long you typically last.\n- \"plan\": name the criteria for a plan.\nREWRITE:\nI decide to start exercising but keep changing the plan every week and never stick with any of them.",
+    "definer": "KEY TERMS:\n- \"changing the plan\": switching to a new routine within a week.\n- \"stick with\": following the same routine for at least four weeks.\nAMBIGUITIES:\n- \"every week\": could mean weekly or whenever a session is missed.\n- \"plan\": could mean type of workout or schedule.\nBOUNDARIES:\n- Not claiming: one routine is best.\n- Not claiming: exercise is the only goal.",
+    "skeptic": "CORE CLAIM:\nChanging routines weekly prevents you from building consistency.\nCHALLENGES:\n- \"keep changing\": the issue could be unrealistic time slots rather than routine type.\n- \"never stick\": you may be missing measurement of adherence.\n- \"one week\": short trials can be valid if used intentionally.\nTEST:\nFollow one routine for 7 days and log each session.",
+    "coach": "INTENT:\nYou want a consistent exercise routine but keep changing direction.\nOPTIONS:\n- Commit to running three times this week. Done looks like three logged runs.\n- Commit to running three times this week. Done looks like three logged runs.\n- Commit to running three times this week. Done looks like three logged runs.\nRECOMMENDATION:\nChoose running for the next 7 days and ignore other options.\nFOR THE NEXT 7 DAYS, STOP:\n- Researching other exercise plans\n- Switching routines mid-week"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["redundancy_severe"]
+  }
+}

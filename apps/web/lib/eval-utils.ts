@@ -1,0 +1,392 @@
+/**
+ * Shared evaluation utilities used by lib/eval.ts and all eval scripts.
+ * This module centralizes validation logic to prevent divergence.
+ */
+
+export type EvalVerdict = "pass" | "fail" | "flag";
+export type RolePurity = "clean" | "drift" | "hijack";
+export type FormatCompliance = "compliant" | "minor_violation" | "broken";
+export type PressureLevel = "too_soft" | "calibrated" | "too_harsh";
+export type RedundancySeverity = "none" | "minor" | "severe";
+
+export type AgentEval = {
+  rolePurity: RolePurity;
+  rolePurityEvidence: string;
+  formatCompliance: FormatCompliance;
+  formatEvidence?: string;
+  pressureLevel: PressureLevel;
+};
+
+export type EvalResult = {
+  evalId: string;
+  entryId: string;
+  promptVersion: string;
+  model: string;
+  timestamp: string;
+  verdict: EvalVerdict;
+  overallScore: number;
+  violations?: string[];
+  agentEvals: Record<string, AgentEval>;
+  redundancy: {
+    severity: RedundancySeverity;
+    overlappingPoints?: string[];
+  };
+  fixes: Array<{
+    target: "system_prompt" | "agent_prompt" | "orchestration";
+    agentName?: string;
+    currentText: string;
+    proposedText: string;
+    rationale: string;
+  }>;
+  fullTranscript: string;
+  evalReasoning: string;
+};
+
+/**
+ * Allowed violation IDs - only these are valid in eval results.
+ * Any other violation ID will be filtered out during sanitization.
+ */
+export const ALLOWED_VIOLATIONS = new Set([
+  "editor_causal_inference",
+  "editor_adds_new_ideas",
+  "definer_not_in_text",
+  "definer_no_operational_defs",
+  "skeptic_over_explains",
+  "skeptic_not_threatening",
+  "coach_identity_injection",
+  "coach_options_not_distinct",
+  "format_broken",
+  "redundancy_severe"
+]);
+
+/**
+ * Required agents that must have eval entries.
+ */
+export const REQUIRED_AGENTS = ["editor", "definer", "skeptic", "coach"] as const;
+
+/**
+ * Violation severity weights for score calculation.
+ *
+ * Weight hierarchy rationale:
+ * - format_broken (15): Critical - output is unusable if format is wrong
+ * - editor_causal_inference, editor_adds_new_ideas (12): High - editor role drift
+ *   distorts the author's meaning, which is the core purpose
+ * - definer_not_in_text, coach_identity_injection, redundancy_severe (10):
+ *   Medium-high - significant role violations or quality issues
+ * - definer_no_operational_defs, skeptic_over_explains, skeptic_not_threatening,
+ *   coach_options_not_distinct (8): Medium - partial failures that don't
+ *   completely compromise the output
+ */
+export const VIOLATION_WEIGHTS: Record<string, number> = {
+  editor_causal_inference: 12,
+  editor_adds_new_ideas: 12,
+  definer_not_in_text: 10,
+  definer_no_operational_defs: 8,
+  skeptic_over_explains: 8,
+  skeptic_not_threatening: 8,
+  coach_identity_injection: 10,
+  coach_options_not_distinct: 8,
+  format_broken: 15,
+  redundancy_severe: 10
+};
+
+/**
+ * Maps violations to their responsible agent.
+ * Used to ensure agent-specific violations have corresponding evidence.
+ */
+export const VIOLATION_AGENT: Record<string, string> = {
+  editor_causal_inference: "editor",
+  editor_adds_new_ideas: "editor",
+  definer_not_in_text: "definer",
+  definer_no_operational_defs: "definer",
+  skeptic_over_explains: "skeptic",
+  skeptic_not_threatening: "skeptic",
+  coach_identity_injection: "coach",
+  coach_options_not_distinct: "coach"
+};
+
+/**
+ * Calculate score from violations.
+ * Score = 100 - sum of violation weights.
+ * Unknown violations get a default penalty of 5.
+ */
+export function normalizeScore(violations: string[]): number {
+  const totalPenalty = violations.reduce(
+    (sum, violation) => sum + (VIOLATION_WEIGHTS[violation] ?? 5),
+    0
+  );
+  return Math.max(0, Math.min(100, 100 - totalPenalty));
+}
+
+/**
+ * Filter and deduplicate violations to only allowed IDs.
+ */
+export function sanitizeViolations(violations: string[] | undefined): string[] {
+  const list = Array.isArray(violations) ? violations : [];
+  const filtered = list.filter((item) => ALLOWED_VIOLATIONS.has(item));
+  return Array.from(new Set(filtered));
+}
+
+/**
+ * Validate eval result against business rules (comprehensive version).
+ * Returns list of validation errors.
+ */
+export function validateEvalResult(
+  result: EvalResult,
+  transcript: string
+): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Eval reasoning validation
+  if (!result.evalReasoning || typeof result.evalReasoning !== "string") {
+    errors.push("missing_eval_reasoning");
+  }
+
+  // Redundancy validation
+  if (!result.redundancy?.severity) {
+    errors.push("missing_redundancy_severity");
+  } else if (!["none", "minor", "severe"].includes(result.redundancy.severity)) {
+    errors.push("invalid_redundancy_severity");
+  }
+
+  // Verdict validation
+  if (!["pass", "fail", "flag"].includes(result.verdict)) {
+    errors.push("invalid_verdict");
+  }
+
+  // Score validation
+  if (
+    typeof result.overallScore !== "number" ||
+    result.overallScore < 0 ||
+    result.overallScore > 100
+  ) {
+    errors.push("invalid_score");
+  }
+
+  // Violations validation
+  const rawViolations = Array.isArray(result.violations) ? result.violations : [];
+  const invalidViolations = rawViolations.filter(
+    (item) => !ALLOWED_VIOLATIONS.has(item)
+  );
+  const violations = sanitizeViolations(rawViolations);
+  result.violations = violations;
+  if (invalidViolations.length > 0) {
+    errors.push(`invalid_violations:${invalidViolations.join(",")}`);
+  }
+
+  // Verdict-violation consistency
+  if (violations.length === 0 && result.verdict === "fail") {
+    errors.push("verdict_fail_without_violations");
+  }
+  if (violations.length > 0 && result.verdict === "pass") {
+    errors.push("verdict_pass_with_violations");
+  }
+
+  // Agent evaluations validation
+  const agentEvals = result.agentEvals || {};
+  for (const agent of REQUIRED_AGENTS) {
+    const evalEntry = agentEvals[agent];
+    if (!evalEntry) {
+      errors.push(`missing_agent_eval:${agent}`);
+      continue;
+    }
+    if (!evalEntry.rolePurity || !evalEntry.rolePurityEvidence) {
+      errors.push(`missing_role_purity:${agent}`);
+    }
+    if (!evalEntry.formatCompliance) {
+      errors.push(`missing_format_compliance:${agent}`);
+    }
+    if (!evalEntry.pressureLevel) {
+      errors.push(`missing_pressure_level:${agent}`);
+    }
+    if (evalEntry.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
+      errors.push("role_evidence_not_in_transcript");
+    }
+    if (
+      evalEntry.formatCompliance !== "compliant" &&
+      (!evalEntry.formatEvidence || !transcript.includes(evalEntry.formatEvidence))
+    ) {
+      errors.push("format_evidence_missing_or_invalid");
+    }
+  }
+
+  // Agent evidence for violations
+  for (const violation of violations) {
+    const agent = VIOLATION_AGENT[violation];
+    if (agent && !agentEvals[agent]?.rolePurityEvidence) {
+      errors.push(`missing_role_evidence_for:${violation}`);
+    }
+  }
+
+  // Format evidence requirement
+  if (violations.includes("format_broken")) {
+    const hasFormatEvidence = Object.values(agentEvals).some(
+      (evalEntry) => evalEntry?.formatEvidence
+    );
+    if (!hasFormatEvidence) {
+      errors.push("missing_format_evidence");
+    }
+  }
+
+  // Redundancy evidence requirement
+  if (violations.includes("redundancy_severe")) {
+    if (!result.redundancy?.overlappingPoints?.length) {
+      errors.push("missing_redundancy_evidence");
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Simplified validation for scripts (less strict than full validation).
+ * Used by eval scripts that may not need all the strictness.
+ */
+export function validateEvalResultBasic(
+  result: EvalResult,
+  transcript: string
+): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Violations validation
+  const violations = Array.isArray(result.violations) ? result.violations : [];
+  result.violations = Array.from(new Set(violations.filter((item) => ALLOWED_VIOLATIONS.has(item))));
+  const invalidViolations = violations.filter((item) => !ALLOWED_VIOLATIONS.has(item));
+  if (invalidViolations.length > 0) {
+    errors.push(`invalid_violations:${invalidViolations.join(",")}`);
+  }
+
+  // Verdict-violation consistency
+  if (violations.length === 0 && result.verdict === "fail") {
+    errors.push("verdict_fail_without_violations");
+  }
+  if (violations.length > 0 && result.verdict === "pass") {
+    errors.push("verdict_pass_with_violations");
+  }
+
+  // Evidence validation
+  const agentEvals = result.agentEvals || {};
+  for (const evalEntry of Object.values(agentEvals)) {
+    if (evalEntry?.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
+      errors.push("role_evidence_not_in_transcript");
+    }
+    if (evalEntry?.formatEvidence && !transcript.includes(evalEntry.formatEvidence)) {
+      errors.push("format_evidence_not_in_transcript");
+    }
+  }
+
+  // Agent evidence for violations
+  for (const violation of result.violations) {
+    const agent = VIOLATION_AGENT[violation];
+    if (agent && !agentEvals[agent]?.rolePurityEvidence) {
+      errors.push(`missing_role_evidence_for:${violation}`);
+    }
+  }
+
+  // Format evidence requirement
+  if (result.violations.includes("format_broken")) {
+    const hasFormatEvidence = Object.values(agentEvals).some(
+      (evalEntry) => evalEntry?.formatEvidence
+    );
+    if (!hasFormatEvidence) {
+      errors.push("missing_format_evidence");
+    }
+  }
+
+  // Redundancy evidence requirement
+  if (result.violations.includes("redundancy_severe")) {
+    if (!result.redundancy?.overlappingPoints?.length) {
+      errors.push("missing_redundancy_evidence");
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Build transcript string from entry and agent outputs.
+ */
+export function buildTranscript(input: {
+  entryTitle: string | null;
+  entryBody: string;
+  agentOutputs: Array<{ agent: string; content: string }>;
+}): string {
+  const entryHeader = input.entryTitle
+    ? `ENTRY TITLE:\n${input.entryTitle}`
+    : "ENTRY TITLE:\n(untitled)";
+
+  const entryBody = `ENTRY BODY:\n${input.entryBody}`;
+
+  const agentSections = input.agentOutputs
+    .map((item) => `AGENT ${item.agent.toUpperCase()}:\n${item.content}`)
+    .join("\n\n");
+
+  return `${entryHeader}\n\n${entryBody}\n\n${agentSections}`;
+}
+
+/**
+ * Build transcript from entry object and outputs map (for scripts).
+ */
+export function buildTranscriptFromMap(
+  entry: { title?: string | null; body: string },
+  outputs: Record<string, string>
+): string {
+  const entryTitle = entry.title
+    ? `ENTRY TITLE:\n${entry.title}`
+    : "ENTRY TITLE:\n(untitled)";
+  const entryBody = `ENTRY BODY:\n${entry.body}`;
+  const agentSections = Object.entries(outputs)
+    .map(([agent, content]) => `AGENT ${agent.toUpperCase()}:\n${content}`)
+    .join("\n\n");
+  return `${entryTitle}\n\n${entryBody}\n\n${agentSections}`;
+}
+
+/**
+ * Build transcript from entry and feedback array (for batch scripts).
+ */
+export function buildTranscriptFromFeedback(
+  entry: { title?: string | null; body: string },
+  feedback: Array<{ agent: string; content: string }>
+): string {
+  const entryTitle = entry.title
+    ? `ENTRY TITLE:\n${entry.title}`
+    : "ENTRY TITLE:\n(untitled)";
+  const entryBody = `ENTRY BODY:\n${entry.body}`;
+  const agentSections = feedback
+    .map((item) => `AGENT ${item.agent.toUpperCase()}:\n${item.content}`)
+    .join("\n\n");
+  return `${entryTitle}\n\n${entryBody}\n\n${agentSections}`;
+}
+
+/**
+ * Parse JSON with recovery for common LLM output issues.
+ * Handles: extra text around JSON, trailing commas.
+ */
+export function tryParseJSON<T = unknown>(content: string): T {
+  // First try direct parse
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    // Try to extract JSON from response (might have markdown or extra text)
+    const start = content.indexOf("{");
+    const end = content.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const jsonStr = content.slice(start, end + 1);
+      try {
+        return JSON.parse(jsonStr) as T;
+      } catch {
+        // Try to fix trailing commas (common LLM issue)
+        try {
+          const fixed = jsonStr.replace(/,\s*([}\]])/g, "$1");
+          return JSON.parse(fixed) as T;
+        } catch (finalError) {
+          const err = finalError as Error;
+          throw new Error(
+            `JSON parse failed: ${err.message} (position ${err.message.match(/position (\d+)/)?.[1] || "unknown"})`
+          );
+        }
+      }
+    }
+    throw new Error(`No JSON found in response`);
+  }
+}

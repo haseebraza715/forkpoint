@@ -19,14 +19,22 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
+const clientOptions = {
+  // SSL/TLS options for MongoDB Atlas
+  tls: true,
+  tlsAllowInvalidCertificates: false,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+
 if (process.env.NODE_ENV === "development") {
   if (!global._mongoClientPromise) {
-    client = new MongoClient(uri);
+    client = new MongoClient(uri, clientOptions);
     global._mongoClientPromise = client.connect();
   }
   clientPromise = global._mongoClientPromise as Promise<MongoClient>;
 } else {
-  client = new MongoClient(uri);
+  client = new MongoClient(uri, clientOptions);
   clientPromise = client.connect();
 }
 

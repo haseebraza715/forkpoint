@@ -5,7 +5,10 @@
     "notes": "Designed to trigger editor causal inference + format break"
   },
   "outputs": {
-    "editor": "SUMMARY:\nDriven by fear of failure, I postpone finishing because I want to protect my self-image.\nFIXES:\n\n- \"postponing finishing\": be specific about how it shows up.\nREWRITE:\nI keep postponing finishing because I'm scared it will expose that I'm not actually good at this."
+    "editor": "SUMMARY:\nDriven by fear of failure, I postpone finishing because I want to protect my self-image.\nFIXES:\n\n- \"postponing finishing\": be specific about how it shows up.\nREWRITE:\nI keep postponing finishing because I'm scared it will expose that I'm not actually good at this.",
+    "definer": "KEY TERMS:\n- \"postponing finishing\": delaying completion beyond the planned date.\n- \"scared\": experiencing fear that leads to avoidance.\nAMBIGUITIES:\n- \"actually good\": could mean better than peers or better than past work.\n- \"expose\": could mean public feedback or personal realization.\nBOUNDARIES:\n- Not claiming: the work is low quality.\n- Not claiming: fear is the only factor.",
+    "skeptic": "CORE CLAIM:\nYou delay finishing because fear of exposure is driving avoidance.\nCHALLENGES:\n- \"postponing finishing\": this could be due to unclear criteria for done, not fear.\n- \"scared it will expose\": you may be assuming negative feedback without evidence.\n- \"not actually good\": you might be using fear as a cover for low priority.\nTEST:\nDefine a done checklist today and complete one item within 60 minutes.",
+    "coach": "INTENT:\nYou want to finish without the fear of being exposed (\"scared it will expose\").\nOPTIONS:\n- Ship a minimal version in 7 days, risking visible flaws. Done looks like a public release.\n- Define a private completion and stop, risking no external feedback. Done looks like a finished draft.\n- Ask one person to review a partial version, risking criticism. Done looks like one review completed.\nRECOMMENDATION:\nShip the minimal version because it forces completion and tests the fear directly. It closes the option of indefinite postponing for the next 7 days.\nFOR THE NEXT 7 DAYS, STOP:\n- Adding new scope\n- Rewriting the same section"
   },
   "expected": {
     "verdict": "fail",

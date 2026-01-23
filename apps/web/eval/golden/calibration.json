@@ -30,6 +30,47 @@
         "coach_identity_injection",
         "skeptic_over_explains"
       ]
+    },
+    {
+      "id": "case_103",
+      "path": "fail/case_103.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "definer_not_in_text",
+        "definer_no_operational_defs"
+      ]
+    },
+    {
+      "id": "case_104",
+      "path": "fail/case_104.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "skeptic_not_threatening"
+      ]
+    },
+    {
+      "id": "case_105",
+      "path": "fail/case_105.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "coach_options_not_distinct"
+      ]
+    },
+    {
+      "id": "case_106",
+      "path": "fail/case_106.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "editor_adds_new_ideas"
+      ]
+    },
+    {
+      "id": "case_107",
+      "path": "fail/case_107.json",
+      "expectedVerdict": "fail",
+      "expectedViolations": [
+        "redundancy_severe"
+      ]
     }
   ]
 }

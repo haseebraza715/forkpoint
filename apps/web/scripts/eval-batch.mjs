@@ -4,6 +4,14 @@ import path from "path";
 import crypto from "crypto";
 import dotenv from "dotenv";
 
+import {
+  normalizeScore,
+  sanitizeViolations,
+  validateEvalResult,
+  buildTranscriptFromFeedback,
+  tryParseJSON
+} from "../lib/eval-utils.mjs";
+
 dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 dotenv.config({ path: path.join(process.cwd(), ".env") });
 
@@ -25,16 +33,7 @@ if (!uri || !dbName) {
 const promptPath = path.join(process.cwd(), "eval", "eval-prompt.txt");
 const promptVersion = process.env.PROMPT_VERSION || "v1";
 
-function buildTranscript(entry, feedback) {
-  const entryTitle = entry.title ? `ENTRY TITLE:\n${entry.title}` : "ENTRY TITLE:\n(untitled)";
-  const entryBody = `ENTRY BODY:\n${entry.body}`;
-  const agentSections = feedback
-    .map((item) => `AGENT ${item.agent.toUpperCase()}:\n${item.content}`)
-    .join("\n\n");
-  return `${entryTitle}\n\n${entryBody}\n\n${agentSections}`;
-}
-
-async function callOpenRouter(prompt, transcript) {
+async function callOpenRouter(prompt, transcript, extraInstruction) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_EVAL_MODEL || process.env.OPENROUTER_MODEL;
 
@@ -65,7 +64,9 @@ async function callOpenRouter(prompt, transcript) {
         { role: "system", content: prompt },
         {
           role: "user",
-          content: `TRANSCRIPT TO EVALUATE:\n${transcript}\n\nCURRENT PROMPT VERSION:\n${promptVersion}`
+          content: `TRANSCRIPT TO EVALUATE:\n${transcript}\n\nCURRENT PROMPT VERSION:\n${promptVersion}${
+            extraInstruction ? `\n\nVALIDATION_ERRORS:\n${extraInstruction}` : ""
+          }`
         }
       ]
     })
@@ -83,6 +84,13 @@ async function callOpenRouter(prompt, transcript) {
   }
 
   return { content, model };
+}
+
+function validateEval(result, transcript) {
+  const rawViolations = Array.isArray(result.violations) ? result.violations : [];
+  result.violations = sanitizeViolations(rawViolations);
+  result.overallScore = normalizeScore(result.violations);
+  return validateEvalResult(result, transcript);
 }
 
 async function run() {
@@ -105,73 +113,6 @@ async function run() {
   }
 
   const failures = [];
-  const allowedViolations = new Set([
-    "editor_causal_inference",
-    "editor_adds_new_ideas",
-    "definer_not_in_text",
-    "definer_no_operational_defs",
-    "skeptic_over_explains",
-    "skeptic_not_threatening",
-    "coach_identity_injection",
-    "coach_options_not_distinct",
-    "format_broken",
-    "redundancy_severe"
-  ]);
-  const violationAgent = {
-    editor_causal_inference: "editor",
-    editor_adds_new_ideas: "editor",
-    definer_not_in_text: "definer",
-    definer_no_operational_defs: "definer",
-    skeptic_over_explains: "skeptic",
-    skeptic_not_threatening: "skeptic",
-    coach_identity_injection: "coach",
-    coach_options_not_distinct: "coach"
-  };
-
-  function validateEval(result, transcript) {
-    const errors = [];
-    const violations = Array.isArray(result.violations) ? result.violations : [];
-    result.violations = Array.from(new Set(violations.filter((item) => allowedViolations.has(item))));
-    const invalidViolations = violations.filter((item) => !allowedViolations.has(item));
-    if (invalidViolations.length > 0) {
-      errors.push(`invalid_violations:${invalidViolations.join(",")}`);
-    }
-    if (violations.length === 0 && result.verdict === "fail") {
-      errors.push("verdict_fail_without_violations");
-    }
-    if (violations.length > 0 && result.verdict === "pass") {
-      errors.push("verdict_pass_with_violations");
-    }
-    const agentEvals = result.agentEvals || {};
-    for (const evalEntry of Object.values(agentEvals)) {
-      if (evalEntry?.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
-        errors.push("role_evidence_not_in_transcript");
-      }
-      if (evalEntry?.formatEvidence && !transcript.includes(evalEntry.formatEvidence)) {
-        errors.push("format_evidence_not_in_transcript");
-      }
-    }
-    for (const violation of violations) {
-      const agent = violationAgent[violation];
-      if (agent && !agentEvals[agent]?.rolePurityEvidence) {
-        errors.push(`missing_role_evidence_for:${violation}`);
-      }
-    }
-    if (violations.includes("format_broken")) {
-      const hasFormatEvidence = Object.values(agentEvals).some(
-        (evalEntry) => evalEntry?.formatEvidence
-      );
-      if (!hasFormatEvidence) {
-        errors.push("missing_format_evidence");
-      }
-    }
-    if (violations.includes("redundancy_severe")) {
-      if (!result.redundancy?.overlappingPoints?.length) {
-        errors.push("missing_redundancy_evidence");
-      }
-    }
-    return { ok: errors.length === 0, errors };
-  }
 
   for (const entry of entries) {
     const entryId = entry._id;
@@ -184,26 +125,15 @@ async function run() {
       continue;
     }
 
-    const transcript = buildTranscript(entry, feedback);
+    const transcript = buildTranscriptFromFeedback(entry, feedback);
     const { content, model } = await callOpenRouter(prompt, transcript);
 
     let parsed;
     try {
-      parsed = JSON.parse(content);
+      parsed = tryParseJSON(content);
     } catch (error) {
-      const start = content.indexOf("{");
-      const end = content.lastIndexOf("}");
-      if (start >= 0 && end > start) {
-        try {
-          parsed = JSON.parse(content.slice(start, end + 1));
-        } catch (innerError) {
-          failures.push({ entryId: entryId.toString(), reason: "Invalid JSON" });
-          continue;
-        }
-      } else {
-        failures.push({ entryId: entryId.toString(), reason: "Invalid JSON" });
-        continue;
-      }
+      failures.push({ entryId: entryId.toString(), reason: "Invalid JSON" });
+      continue;
     }
 
     const result = {
@@ -218,10 +148,49 @@ async function run() {
 
     const validation = validateEval(result, transcript);
     if (!validation.ok) {
-      failures.push({
+      const { content: retryContent } = await callOpenRouter(
+        prompt,
+        transcript,
+        validation.errors.join("; ")
+      );
+      try {
+        parsed = tryParseJSON(retryContent);
+      } catch (error) {
+        failures.push({
+          entryId: entryId.toString(),
+          reason: "Invalid JSON after retry"
+        });
+        continue;
+      }
+      const retryResult = {
+        ...parsed,
+        evalId: parsed.evalId || crypto.randomUUID(),
         entryId: entryId.toString(),
-        reason: `Eval validation failed: ${validation.errors.join(", ")}`
+        promptVersion,
+        model,
+        timestamp: parsed.timestamp || new Date().toISOString(),
+        fullTranscript: transcript
+      };
+      const retryValidation = validateEval(retryResult, transcript);
+      if (!retryValidation.ok) {
+        failures.push({
+          entryId: entryId.toString(),
+          reason: `Eval validation failed: ${retryValidation.errors.join(", ")}`
+        });
+        continue;
+      }
+      await evaluationsCollection.insertOne({
+        entryId: new ObjectId(entryId),
+        promptVersion,
+        result: retryResult,
+        createdAt: new Date()
       });
+      if (failOn.includes(retryResult.verdict)) {
+        failures.push({ entryId: entryId.toString(), reason: `Verdict ${retryResult.verdict}` });
+      }
+      console.log(
+        `[eval] ${entryId.toString()} verdict=${retryResult.verdict} score=${retryResult.overallScore}`
+      );
       continue;
     }
 
@@ -236,7 +205,7 @@ async function run() {
       failures.push({ entryId: entryId.toString(), reason: `Verdict ${result.verdict}` });
     }
 
-    console.log(`[eval] ${entryId.toString()} verdict=${result.verdict}`);
+    console.log(`[eval] ${entryId.toString()} verdict=${result.verdict} score=${result.overallScore}`);
   }
 
   await client.close();

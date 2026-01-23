@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       {
         $project: {
           verdict: "$result.verdict",
+          overallScore: "$result.overallScore",
           violations: { $ifNull: ["$result.violations", []] }
         }
       },
@@ -46,6 +47,17 @@ export async function GET(request: Request) {
               }
             },
             { $sort: { count: -1 } }
+          ],
+          scoreStats: [
+            {
+              $group: {
+                _id: null,
+                avgScore: { $avg: "$overallScore" },
+                minScore: { $min: "$overallScore" },
+                maxScore: { $max: "$overallScore" },
+                total: { $sum: 1 }
+              }
+            }
           ]
         }
       }
@@ -54,9 +66,35 @@ export async function GET(request: Request) {
     const [fromResult] = await evaluations.aggregate(pipeline(from)).toArray();
     const [toResult] = await evaluations.aggregate(pipeline(to)).toArray();
 
+    // Calculate deltas
+    const fromStats = fromResult.scoreStats[0] || { avgScore: 0, minScore: 0, maxScore: 0, total: 0 };
+    const toStats = toResult.scoreStats[0] || { avgScore: 0, minScore: 0, maxScore: 0, total: 0 };
+
+    const fromPassCount = fromResult.verdicts.find((v: { _id: string; count: number }) => v._id === "pass")?.count || 0;
+    const toPassCount = toResult.verdicts.find((v: { _id: string; count: number }) => v._id === "pass")?.count || 0;
+    const fromTotal = fromStats.total || 1;
+    const toTotal = toStats.total || 1;
+
+    const deltas = {
+      avgScoreDelta: toStats.avgScore - fromStats.avgScore,
+      passRateDelta: (toPassCount / toTotal) - (fromPassCount / fromTotal),
+      totalDelta: toStats.total - fromStats.total
+    };
+
     return NextResponse.json({
-      from: { promptVersion: from, ...fromResult },
-      to: { promptVersion: to, ...toResult }
+      from: {
+        promptVersion: from,
+        verdicts: fromResult.verdicts,
+        violations: fromResult.violations,
+        scoreStats: fromStats
+      },
+      to: {
+        promptVersion: to,
+        verdicts: toResult.verdicts,
+        violations: toResult.violations,
+        scoreStats: toStats
+      },
+      deltas
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

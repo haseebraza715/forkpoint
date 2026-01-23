@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Entry = {
   id: string;
@@ -29,11 +29,7 @@ export default function EvalPanel() {
   const [error, setError] = useState<string | null>(null);
   const [force, setForce] = useState(false);
 
-  useEffect(() => {
-    void loadEntries();
-  }, []);
-
-  async function loadEntries() {
+  const loadEntries = useCallback(async function loadEntries() {
     setError(null);
     const response = await fetch("/api/entries");
     if (!response.ok) {
@@ -42,7 +38,11 @@ export default function EvalPanel() {
     }
     const data = (await response.json()) as { entries: Entry[] };
     setEntries(data.entries ?? []);
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadEntries();
+  }, [loadEntries]);
 
   async function runEval() {
     if (!selectedEntry) {

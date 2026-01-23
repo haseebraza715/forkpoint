@@ -1,0 +1,17 @@
+{
+  "entry": {
+    "title": "Stuck in analysis",
+    "body": "I spend too much time researching before starting anything. Last week I spent 4 hours comparing project management tools instead of working on my actual project.",
+    "notes": "Designed to trigger definer violations"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nYou spend time researching tools instead of starting the project.\nFIXES:\n- \"too much time researching\": specify the time frame and threshold.\n- \"before starting anything\": name the specific task delayed.\n- \"actual project\": clarify what the project is.\nREWRITE:\nI spend too much time researching tools and delay starting my actual project.",
+    "definer": "KEY TERMS:\n- perfectionism: the need to have everything ideal before moving forward\n- procrastination: delaying important tasks in favor of less important ones\n- analysis paralysis: unable to make decisions due to overthinking\nAMBIGUITIES:\n- \"too much time\": unclear threshold for what counts as excessive\nBOUNDARIES:\n- Not claiming: this is about the tools themselves.\n- Not claiming: the project is inherently too complex.",
+    "skeptic": "CORE CLAIM:\nYou avoid starting by researching tools instead.\nCHALLENGES:\n- \"spent 4 hours comparing\": this could be legitimate setup work, not avoidance.\n- \"instead of working\": you may be underestimating the value of selecting tools.\n- \"actual project\": if the project is unclear, research may be necessary.\nTEST:\nSpend one 60-minute block on the project without tool research this week.",
+    "coach": "INTENT:\nYou want to start the project but get stuck researching tools (\"4 hours comparing\").\nOPTIONS:\n- Pick one tool today and start a first task, risking suboptimal tooling. Done looks like one task completed.\n- Set a 30-minute research cap and begin anyway, risking uncertainty. Done looks like a started task.\n- Freeze tool choice for 7 days, risking regret. Done looks like no tool changes.\nRECOMMENDATION:\nPick one tool today because it closes the loop on research and forces action. It closes the option of more tool shopping for 7 days.\nFOR THE NEXT 7 DAYS, STOP:\n- Comparing new tools\n- Changing your tool choice"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["definer_not_in_text", "definer_no_operational_defs"]
+  }
+}

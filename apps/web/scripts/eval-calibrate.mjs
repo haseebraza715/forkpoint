@@ -2,6 +2,14 @@ import { readFile } from "fs/promises";
 import path from "path";
 import dotenv from "dotenv";
 
+import {
+  normalizeScore,
+  sanitizeViolations,
+  validateEvalResult,
+  buildTranscriptFromMap,
+  tryParseJSON
+} from "../lib/eval-utils.mjs";
+
 dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 dotenv.config({ path: path.join(process.cwd(), ".env") });
 
@@ -9,16 +17,7 @@ const baseDir = process.cwd();
 const promptPath = path.join(baseDir, "eval", "eval-prompt.txt");
 const calibrationPath = path.join(baseDir, "eval", "golden", "calibration.json");
 
-function buildTranscript(entry, outputs) {
-  const entryTitle = entry.title ? `ENTRY TITLE:\n${entry.title}` : "ENTRY TITLE:\n(untitled)";
-  const entryBody = `ENTRY BODY:\n${entry.body}`;
-  const agentSections = Object.entries(outputs)
-    .map(([agent, content]) => `AGENT ${agent.toUpperCase()}:\n${content}`)
-    .join("\n\n");
-  return `${entryTitle}\n\n${entryBody}\n\n${agentSections}`;
-}
-
-async function callOpenRouter(prompt, transcript, promptVersion) {
+async function callOpenRouter(prompt, transcript, promptVersion, extraInstruction) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_EVAL_MODEL || process.env.OPENROUTER_MODEL;
 
@@ -49,7 +48,9 @@ async function callOpenRouter(prompt, transcript, promptVersion) {
         { role: "system", content: prompt },
         {
           role: "user",
-          content: `TRANSCRIPT TO EVALUATE:\n${transcript}\n\nCURRENT PROMPT VERSION:\n${promptVersion}`
+          content: `TRANSCRIPT TO EVALUATE:\n${transcript}\n\nCURRENT PROMPT VERSION:\n${promptVersion}${
+            extraInstruction ? `\n\nVALIDATION_ERRORS:\n${extraInstruction}` : ""
+          }`
         }
       ]
     })
@@ -69,6 +70,13 @@ async function callOpenRouter(prompt, transcript, promptVersion) {
   return { content, model };
 }
 
+function validateEval(result, transcript) {
+  const rawViolations = Array.isArray(result.violations) ? result.violations : [];
+  result.violations = sanitizeViolations(rawViolations);
+  result.overallScore = normalizeScore(result.violations);
+  return validateEvalResult(result, transcript);
+}
+
 async function run() {
   const [prompt, calibrationRaw] = await Promise.all([
     readFile(promptPath, "utf8"),
@@ -77,120 +85,55 @@ async function run() {
 
   const calibration = JSON.parse(calibrationRaw);
   const failures = [];
-  const allowedViolations = new Set([
-    "editor_causal_inference",
-    "editor_adds_new_ideas",
-    "definer_not_in_text",
-    "definer_no_operational_defs",
-    "skeptic_over_explains",
-    "skeptic_not_threatening",
-    "coach_identity_injection",
-    "coach_options_not_distinct",
-    "format_broken",
-    "redundancy_severe"
-  ]);
-  const violationAgent = {
-    editor_causal_inference: "editor",
-    editor_adds_new_ideas: "editor",
-    definer_not_in_text: "definer",
-    definer_no_operational_defs: "definer",
-    skeptic_over_explains: "skeptic",
-    skeptic_not_threatening: "skeptic",
-    coach_identity_injection: "coach",
-    coach_options_not_distinct: "coach"
-  };
-
-  function validateEval(result, transcript) {
-    const errors = [];
-    const violations = Array.isArray(result.violations) ? result.violations : [];
-    result.violations = Array.from(new Set(violations.filter((item) => allowedViolations.has(item))));
-    const invalidViolations = violations.filter((item) => !allowedViolations.has(item));
-    if (invalidViolations.length > 0) {
-      errors.push(`invalid_violations:${invalidViolations.join(",")}`);
-    }
-    if (violations.length === 0 && result.verdict === "fail") {
-      errors.push("verdict_fail_without_violations");
-    }
-    if (violations.length > 0 && result.verdict === "pass") {
-      errors.push("verdict_pass_with_violations");
-    }
-    const agentEvals = result.agentEvals || {};
-    for (const evalEntry of Object.values(agentEvals)) {
-      if (evalEntry?.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
-        errors.push("role_evidence_not_in_transcript");
-      }
-      if (evalEntry?.formatEvidence && !transcript.includes(evalEntry.formatEvidence)) {
-        errors.push("format_evidence_not_in_transcript");
-      }
-    }
-    for (const violation of violations) {
-      const agent = violationAgent[violation];
-      if (agent && !agentEvals[agent]?.rolePurityEvidence) {
-        errors.push(`missing_role_evidence_for:${violation}`);
-      }
-    }
-    if (violations.includes("format_broken")) {
-      const hasFormatEvidence = Object.values(agentEvals).some(
-        (evalEntry) => evalEntry?.formatEvidence
-      );
-      if (!hasFormatEvidence) {
-        errors.push("missing_format_evidence");
-      }
-    }
-    if (violations.includes("redundancy_severe")) {
-      if (!result.redundancy?.overlappingPoints?.length) {
-        errors.push("missing_redundancy_evidence");
-      }
-    }
-    return { ok: errors.length === 0, errors };
-  }
 
   for (const entry of calibration.cases) {
     const casePath = path.join(baseDir, "eval", "golden", entry.path);
     const caseRaw = await readFile(casePath, "utf8");
     const data = JSON.parse(caseRaw);
 
-    const transcript = buildTranscript(data.entry, data.outputs);
-    const { content, model } = await callOpenRouter(
-      prompt,
-      transcript,
-      calibration.version
-    );
+    const transcript = buildTranscriptFromMap(data.entry, data.outputs);
+    const { content, model } = await callOpenRouter(prompt, transcript, calibration.version);
 
     let parsed;
     try {
-      parsed = JSON.parse(content);
+      parsed = tryParseJSON(content);
     } catch (error) {
-      const start = content.indexOf("{");
-      const end = content.lastIndexOf("}");
-      if (start >= 0 && end > start) {
-        try {
-          parsed = JSON.parse(content.slice(start, end + 1));
-        } catch (innerError) {
-          failures.push({
-            id: entry.id,
-            reason: "Eval output is not valid JSON",
-            detail: content.slice(0, 200)
-          });
-          continue;
-        }
-      } else {
-        failures.push({
-          id: entry.id,
-          reason: "Eval output is not valid JSON",
-          detail: content.slice(0, 200)
-        });
-        continue;
-      }
+      failures.push({
+        id: entry.id,
+        reason: "Eval output is not valid JSON",
+        detail: content.slice(0, 200)
+      });
+      continue;
     }
 
     const validation = validateEval(parsed, transcript);
     if (!validation.ok) {
-      failures.push({
-        id: entry.id,
-        reason: `Eval validation failed: ${validation.errors.join(", ")}`
-      });
-      continue;
+      const { content: retryContent } = await callOpenRouter(
+        prompt,
+        transcript,
+        calibration.version,
+        validation.errors.join("; ")
+      );
+      try {
+        parsed = tryParseJSON(retryContent);
+      } catch (error) {
+        failures.push({
+          id: entry.id,
+          reason: "Eval output is not valid JSON after retry",
+          detail: retryContent.slice(0, 200)
+        });
+        continue;
+      }
+      parsed.violations = sanitizeViolations(parsed.violations);
+      parsed.overallScore = normalizeScore(parsed.violations);
+      const retryValidation = validateEval(parsed, transcript);
+      if (!retryValidation.ok) {
+        failures.push({
+          id: entry.id,
+          reason: `Eval validation failed: ${retryValidation.errors.join(", ")}`
+        });
+        continue;
+      }
     }
 
     const expectedVerdict = entry.expectedVerdict;
@@ -213,7 +156,7 @@ async function run() {
       });
     }
 
-    console.log(`[${entry.id}] verdict=${parsed.verdict} model=${model}`);
+    console.log(`[${entry.id}] verdict=${parsed.verdict} score=${parsed.overallScore} model=${model}`);
   }
 
   if (failures.length > 0) {

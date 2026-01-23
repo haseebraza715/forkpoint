@@ -1,0 +1,17 @@
+{
+  "entry": {
+    "title": "Shipping hesitation",
+    "body": "I keep delaying release because I want the onboarding to be perfect. The core features work, but I keep adding small tweaks instead of shipping.",
+    "notes": "Designed to trigger editor_adds_new_ideas"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nYou're delaying release while focusing on onboarding perfection.\nFIXES:\n- \"keep delaying release\": clarify what \"delaying\" means (days, weeks, or milestones).\n- \"onboarding to be perfect\": define what \"perfect\" means in measurable terms.\n- \"core features work\": specify which features and what \"work\" means.\nREWRITE:\nYou are delaying release because you want the onboarding to be perfect. The core features work, but you keep adding small tweaks instead of shipping. You might be avoiding feedback because you're afraid of negative reviews.",
+    "definer": "KEY TERMS:\n- \"delaying release\": moving a planned launch date later.\n- \"perfect\": meeting an internal standard with no known issues.\nAMBIGUITIES:\n- \"core features\": could mean primary user flows or backend stability.\n- \"small tweaks\": could be UI changes or functional changes.\nBOUNDARIES:\n- Not claiming: the onboarding is actually poor.\n- Not claiming: the product is unfinished.",
+    "skeptic": "CORE CLAIM:\nPerfectionism about onboarding is causing delay.\nCHALLENGES:\n- \"keep delaying\": this could be rational prioritization rather than perfectionism.\n- \"core features work\": you may be underestimating integration bugs.\n- \"small tweaks\": these could be necessary fixes, not avoidance.\nTEST:\nShip to a small cohort this week and track activation.",
+    "coach": "INTENT:\nYou want to ship but keep refining onboarding (\"onboarding to be perfect\").\nOPTIONS:\n- Ship to a limited beta in 7 days, risking imperfect onboarding. Done looks like 10 users onboarded.\n- Freeze onboarding changes for a week, risking known issues. Done looks like no onboarding edits.\n- Cut onboarding to the minimum flow and ship, risking confusion. Done looks like a public release.\nRECOMMENDATION:\nChoose the limited beta because it forces shipping while containing risk. It closes the option of unlimited tweaks for 7 days.\nFOR THE NEXT 7 DAYS, STOP:\n- Adding onboarding steps\n- Rewriting onboarding copy"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["editor_adds_new_ideas"]
+  }
+}

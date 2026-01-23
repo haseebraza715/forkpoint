@@ -1,0 +1,17 @@
+{
+  "entry": {
+    "title": "Direction paralysis",
+    "body": "I don't know whether to double down on my current product or pivot to something new. Revenue is flat at $2k MRR for 6 months.",
+    "notes": "Designed to trigger coach_options_not_distinct"
+  },
+  "outputs": {
+    "editor": "SUMMARY:\nYou are unsure whether to double down or pivot because revenue has been flat.\nFIXES:\n- \"don't know whether\": specify what would count as a decision.\n- \"double down\": define the actions implied.\n- \"Revenue is flat\": clarify the time period and metric.\nREWRITE:\nI don't know whether to double down on my current product or pivot. Revenue has been flat at $2k MRR for 6 months.",
+    "definer": "KEY TERMS:\n- \"double down\": increase effort or investment in the current product.\n- \"pivot\": change the product direction or market.\nAMBIGUITIES:\n- \"flat\": could mean no growth or slight decline.\n- \"current product\": could mean feature set or target market.\nBOUNDARIES:\n- Not claiming: a pivot will succeed.\n- Not claiming: doubling down will fail.",
+    "skeptic": "CORE CLAIM:\nFlat revenue means you should choose between doubling down and pivoting.\nCHALLENGES:\n- \"flat at $2k MRR\": this may be due to pricing or distribution, not product direction.\n- \"don't know\": you may be avoiding a choice because the criteria are unclear.\n- \"pivot\": you might be overestimating the need for a full change vs. a smaller experiment.\nTEST:\nRun a single acquisition experiment this week and track new trials.",
+    "coach": "INTENT:\nYou want clarity on whether to continue or change direction.\nOPTIONS:\n- Focus more on your current product. Done looks like increased engagement.\n- Put more effort into what you're already doing. Done looks like growth metrics.\n- Try harder with your existing approach. Done looks like breaking the plateau.\nRECOMMENDATION:\nDouble down on your current product for another quarter.\nFOR THE NEXT 7 DAYS, STOP:\n- Thinking about pivoting\n- Researching new markets"
+  },
+  "expected": {
+    "verdict": "fail",
+    "violations": ["coach_options_not_distinct"]
+  }
+}
