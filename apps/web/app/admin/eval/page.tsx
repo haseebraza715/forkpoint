@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
+import { isEvalEnabled } from "@/lib/eval-mode";
 import EvalPanel from "./EvalPanel";
 
 export default function EvalPage() {
-  if (process.env.EVAL_MODE !== "true") {
+  if (!isEvalEnabled()) {
     notFound();
   }
 

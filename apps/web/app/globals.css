@@ -1,19 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f4f2;
-  --bg-2: #efe9e3;
-  --ink: #14171b;
-  --muted: #616b75;
-  --card: #fffdfb;
-  --card-2: #f8f5f0;
-  --card-3: #f2ebe4;
-  --stroke: #e2d9d0;
-  --accent: #0f5e6a;
-  --accent-2: #c1663c;
-  --accent-soft: rgba(15, 94, 106, 0.22);
+  --bg: #f6f0e8;
+  --bg-2: #efe7dd;
+  --ink: #1b1c20;
+  --muted: #5f6671;
+  --card: #fffdf9;
+  --card-2: #f7f1ea;
+  --card-3: #efe5db;
+  --stroke: #e0d5c8;
+  --accent: #0e5b66;
+  --accent-2: #c36134;
+  --accent-3: #18324f;
+  --accent-soft: rgba(14, 91, 102, 0.2);
   --shadow-card: 0 30px 80px rgba(20, 23, 27, 0.12);
-  --shadow-float: 0 18px 50px rgba(20, 23, 27, 0.16);
+  --shadow-float: 0 18px 50px rgba(20, 23, 27, 0.18);
+  --shadow-soft: 0 12px 40px rgba(20, 23, 27, 0.12);
 }
 
 @theme inline {
@@ -23,9 +25,10 @@
 }
 
 body {
-  background: radial-gradient(circle at 12% 8%, #fff2e6, transparent 55%),
-    radial-gradient(circle at 88% 12%, #e7f3f5, transparent 45%),
-    radial-gradient(circle at 50% 85%, #efe6db, transparent 55%),
+  background:
+    radial-gradient(circle at 8% 12%, #fff1e0, transparent 45%),
+    radial-gradient(circle at 92% 16%, #e1f0f2, transparent 46%),
+    radial-gradient(circle at 50% 88%, #eadfd2, transparent 52%),
     linear-gradient(120deg, var(--bg), var(--bg-2));
   color: var(--ink);
   font-family: var(--font-body), serif;
@@ -34,7 +37,7 @@ body {
 }
 
 ::selection {
-  background: rgba(15, 94, 106, 0.18);
+  background: rgba(14, 91, 102, 0.18);
 }
 
 summary::-webkit-details-marker {
@@ -44,7 +47,7 @@ summary::-webkit-details-marker {
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -52,6 +55,51 @@ summary::-webkit-details-marker {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
 .animate-rise {
-  animation: fadeUp 0.5s ease both;
+  animation: fadeUp 0.55s ease both;
+}
+
+@layer components {
+  .card {
+    @apply rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] shadow-[var(--shadow-card)];
+  }
+
+  .card-soft {
+    @apply rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)];
+  }
+
+  .btn-primary {
+    @apply rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(14,91,102,0.3)] transition hover:translate-y-[-1px] hover:shadow-[0_16px_40px_rgba(14,91,102,0.35)] disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-outline {
+    @apply rounded-full border border-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-ghost {
+    @apply rounded-full border border-[var(--stroke)] px-5 py-2 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)];
+  }
+
+  .chip {
+    @apply rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-[var(--muted)];
+  }
+
+  .tag {
+    @apply rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)];
+  }
+
+  .brand-mark {
+    @apply flex h-11 w-11 items-center justify-center rounded-[18px] border border-[var(--stroke)] bg-[var(--card)] text-[11px] font-semibold uppercase tracking-[0.35em] text-[var(--accent)];
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 10px 24px rgba(14, 91, 102, 0.15);
+  }
 }

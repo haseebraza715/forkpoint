@@ -1,705 +1,192 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-"use client";
+import Link from "next/link";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-type Entry = {
-  id: string;
-  title: string | null;
-  body?: string;
-  createdAt: string;
-  updatedAt: string;
-  status: "draft" | "reflected";
-  wordCount: number;
-};
-
-type Feedback = {
-  id?: string;
-  entryId: string;
-  agent: "editor" | "definer" | "skeptic" | "coach" | "risk";
-  content: string;
-  createdAt: string;
-  model?: string;
-  promptVersion?: string;
-};
-
-const AGENT_META: Record<
-  Feedback["agent"],
-  { label: string; role: string; accent: string; tint: string }
-> = {
-  editor: {
-    label: "Editor",
-    role: "Clarity",
-    accent: "#7a4f2b",
-    tint: "rgba(122,79,43,0.08)"
+const HOW_IT_WORKS = [
+  {
+    title: "Capture the decision",
+    description: "Write one private entry with the real tension."
   },
-  definer: {
-    label: "Definer",
-    role: "Definitions",
-    accent: "#2f6f73",
-    tint: "rgba(47,111,115,0.08)"
+  {
+    title: "Run the five agents",
+    description: "Each agent answers a specific question."
   },
-  risk: {
-    label: "Risk",
-    role: "Safeguards",
-    accent: "#9b2c2c",
-    tint: "rgba(155,44,44,0.08)"
-  },
-  skeptic: {
-    label: "Skeptic",
-    role: "Logic",
-    accent: "#2d4f6f",
-    tint: "rgba(45,79,111,0.08)"
-  },
-  coach: {
-    label: "Coach",
-    role: "Direction",
-    accent: "#7a3f5f",
-    tint: "rgba(122,63,95,0.08)"
+  {
+    title: "Commit to a move",
+    description: "You get a single signal to act on."
   }
-};
+];
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
+const OUTCOMES = ["Clarity", "Focus", "Momentum"];
 
-function getPreviewLine(content: string) {
-  const lines = content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  return lines[0] ?? "No content returned.";
-}
+const AGENT_LINES = [
+  { name: "Editor", line: "Sharpens the core tension and cleans the story." },
+  { name: "Definer", line: "Pins down fuzzy terms so you stop debating yourself." },
+  { name: "Risk", line: "Surfaces quiet downsides before you commit." },
+  { name: "Skeptic", line: "Stress-tests the weakest claim." },
+  { name: "Coach", line: "Recommends the single next move." }
+];
 
-function countWords(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return 0;
-  }
-  return trimmed.split(/\s+/).length;
-}
-
-function parseSections(content: string) {
-  const lines = content.split("\n");
-  const sections: Array<{ title: string; body: string }> = [];
-  let current: { title: string; lines: string[] } | null = null;
-
-  for (const line of lines) {
-    const headingMatch = line.match(/^([A-Z][A-Z ]+):\s*$/);
-    if (headingMatch) {
-      if (current) {
-        sections.push({ title: current.title, body: current.lines.join("\n").trim() });
-      }
-      current = { title: headingMatch[1], lines: [] };
-      continue;
-    }
-    if (!current) {
-      current = { title: "Output", lines: [] };
-    }
-    current.lines.push(line);
-  }
-
-  if (current) {
-    sections.push({ title: current.title, body: current.lines.join("\n").trim() });
-  }
-
-  return sections.filter((section) => section.body.length > 0);
-}
-
-export default function Home() {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
-  const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isReflecting, setIsReflecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
-  const [agentFilter, setAgentFilter] = useState<Feedback["agent"] | "all">(
-    "all"
-  );
-
-  const isEditingExisting = Boolean(selectedEntry?.id);
-  const isDirty = selectedEntry
-    ? title !== (selectedEntry.title ?? "") || body !== (selectedEntry.body ?? "")
-    : true;
-  const liveWordCount = useMemo(() => countWords(body), [body]);
-
-  const sortedFeedback = useMemo(() => {
-    const order = { editor: 0, definer: 1, risk: 2, skeptic: 3, coach: 4 };
-    return [...feedback].sort((a, b) => order[a.agent] - order[b.agent]);
-  }, [feedback]);
-
-  const filteredFeedback = useMemo(() => {
-    if (agentFilter === "all") {
-      return sortedFeedback;
-    }
-    return sortedFeedback.filter((item) => item.agent === agentFilter);
-  }, [agentFilter, sortedFeedback]);
-
-  const agentCounts = useMemo(() => {
-    return sortedFeedback.reduce(
-      (acc, item) => {
-        acc[item.agent] = (acc[item.agent] || 0) + 1;
-        return acc;
-      },
-      {} as Record<Feedback["agent"], number>
-    );
-  }, [sortedFeedback]);
-
-  const loadEntries = useCallback(async function loadEntries() {
-    setError(null);
-    const response = await fetch("/api/entries");
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setError(data?.error || "Failed to load entries.");
-      return;
-    }
-    const data = (await response.json()) as { entries: Entry[] };
-    setEntries(data.entries ?? []);
-  }, []);
-
-  useEffect(() => {
-    void loadEntries();
-  }, [loadEntries]);
-
-  async function loadEntry(entryId: string) {
-    setError(null);
-    const response = await fetch(`/api/entries/${entryId}`);
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setError(data?.error || "Failed to load entry.");
-      return;
-    }
-    const data = (await response.json()) as {
-      entry: Entry;
-      feedback: Feedback[];
-    };
-    setSelectedEntry(data.entry);
-    setFeedback(data.feedback ?? []);
-    setTitle(data.entry.title ?? "");
-    setBody(data.entry.body ?? "");
-  }
-
-  async function handleCreate() {
-    if (!body.trim()) {
-      setError("Write something before saving.");
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    const response = await fetch(
-      selectedEntry?.id ? `/api/entries/${selectedEntry.id}` : "/api/entries",
-      {
-        method: selectedEntry?.id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body })
-      }
-    );
-
-    setIsSaving(false);
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setError(data?.error || "Could not save entry.");
-      return;
-    }
-
-    const data = (await response.json()) as { entry: Entry };
-    setSelectedEntry(data.entry);
-    setFeedback([]);
-    await loadEntries();
-  }
-
-  async function handleReflect() {
-    if (!selectedEntry?.id) {
-      setError("Save an entry before reflecting.");
-      return;
-    }
-
-    setIsReflecting(true);
-    setError(null);
-    setFeedback([]);
-
-    const response = await fetch(
-      `/api/entries/${selectedEntry.id}/reflect/stream`,
-      {
-        method: "POST"
-      }
-    );
-
-    if (!response.ok || !response.body) {
-      const data = await response.json().catch(() => null);
-      setIsReflecting(false);
-      setError(data?.error || "Reflection failed.");
-      return;
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          continue;
-        }
-
-        try {
-          const payload = JSON.parse(trimmed) as
-            | { type: "feedback"; data: Feedback }
-            | { type: "done" }
-            | { type: "error"; message: string };
-
-          if (payload.type === "error") {
-            setError(payload.message);
-            setIsReflecting(false);
-            return;
-          }
-
-          if (payload.type === "feedback") {
-            setFeedback((prev) => {
-              const next = prev.filter((item) => item.agent !== payload.data.agent);
-              return [...next, payload.data];
-            });
-          }
-        } catch (parseError) {
-          console.error(parseError);
-        }
-      }
-    }
-
-    setIsReflecting(false);
-    await loadEntries();
-  }
-
-  function handleNewEntry() {
-    setSelectedEntry(null);
-    setFeedback([]);
-    setTitle("");
-    setBody("");
-    setError(null);
-  }
-
-  async function handleDelete(entryId: string) {
-    setError(null);
-    const response = await fetch(`/api/entries/${entryId}`, { method: "DELETE" });
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setError(data?.error || "Delete failed.");
-      return;
-    }
-
-    if (selectedEntry?.id === entryId) {
-      handleNewEntry();
-    }
-
-    await loadEntries();
-  }
-
-  function renderMarkdown(content: string) {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h1: ({ children }) => (
-            <h3 className="mt-4 text-base font-semibold text-[var(--ink)]">
-              {children}
-            </h3>
-          ),
-          h2: ({ children }) => (
-            <h3 className="mt-4 text-base font-semibold text-[var(--ink)]">
-              {children}
-            </h3>
-          ),
-          h3: ({ children }) => (
-            <h4 className="mt-4 text-sm font-semibold text-[var(--ink)]">
-              {children}
-            </h4>
-          ),
-          p: ({ children }) => (
-            <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]">{children}</p>
-          ),
-          ul: ({ children }) => (
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[var(--ink)]">
-              {children}
-            </ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-[var(--ink)]">
-              {children}
-            </ol>
-          ),
-          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-          strong: ({ children }) => (
-            <strong className="font-semibold text-[var(--ink)]">{children}</strong>
-          ),
-          em: ({ children }) => <em className="italic text-[var(--ink)]">{children}</em>,
-          code: ({ children }) => (
-            <code className="rounded bg-[var(--bg-2)] px-1 py-0.5 text-xs text-[var(--ink)]">
-              {children}
-            </code>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="mt-3 border-l-2 border-[var(--stroke)] pl-3 text-sm text-[var(--muted)]">
-              {children}
-            </blockquote>
-          )
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    );
-  }
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen px-6 py-12 text-[var(--ink)] md:px-12">
+    <div className="min-h-screen px-6 pb-16 pt-10 text-[var(--ink)] md:px-12">
       <header className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-[var(--muted)]">
-              Private reflection suite
-            </p>
-            <h1 className="mt-2 font-[var(--font-display)] text-3xl font-semibold tracking-tight md:text-4xl">
-              Private Blogging Intelligence
-            </h1>
+        <nav className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="font-[var(--font-display)] text-xl font-semibold">
+                Private Blogging Intelligence
+              </h1>
+            </div>
           </div>
-          <div className="rounded-full border border-[var(--stroke)] bg-[var(--card)] px-4 py-2 text-xs text-[var(--muted)] shadow-[var(--shadow-card)]">
-            Five agents. One signal.
+          <div className="flex items-center gap-3">
+            <Link href="/studio" className="btn-outline">
+              Test the studio
+            </Link>
+            <Link href="/studio" className="btn-primary">
+              Start now
+            </Link>
           </div>
-        </div>
-        <p className="max-w-3xl text-base text-[var(--muted)] md:text-lg">
-          Write with precision. Reflect with Editor, Definer, Risk, Skeptic, and
-          Coach. Clarity over noise.
-        </p>
-      </header>
+        </nav>
 
-      <main className="mx-auto mt-10 flex w-full max-w-6xl flex-col gap-8">
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
-            <div className="flex items-center justify-between">
-              <h2 className="font-[var(--font-display)] text-xl font-semibold">
-                New entry
+        <section className="card p-8 md:p-10">
+          <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.4em] text-[var(--muted)]">
+                <span>Five agents. One signal.</span>
+                <span className="h-1 w-1 rounded-full bg-[var(--stroke)]" />
+                <span>Private by design</span>
+              </div>
+              <h2 className="max-w-3xl font-[var(--font-display)] text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+                Turn private writing into a decision you can trust.
               </h2>
-              {selectedEntry && (
-                <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                  {selectedEntry.status}
-                </span>
-              )}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.25em] text-[var(--muted)]">
-              {(["editor", "definer", "risk", "skeptic", "coach"] as const).map((agent) => (
-                <span
-                  key={agent}
-                  className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1"
-                >
-                  {AGENT_META[agent].label}
-                </span>
-              ))}
-            </div>
-            <div className="mt-5 flex flex-col gap-4">
-              <input
-                className="w-full rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] px-4 py-3 text-sm outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
-                placeholder="Optional title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-              <textarea
-                className="min-h-[240px] w-full resize-none rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] px-4 py-4 text-sm leading-relaxed outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
-                placeholder="Write with honesty. No formatting. No performance."
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--muted)]">
-              <div className="flex items-center gap-3">
-                <span className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1 uppercase tracking-[0.2em] text-[10px]">
-                  {liveWordCount} words
-                </span>
-                <span className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1 uppercase tracking-[0.2em] text-[10px]">
-                  {isDirty ? "Unsaved" : "Saved"}
-                </span>
+              <p className="max-w-2xl text-base text-[var(--muted)] md:text-lg">
+                A calm reflection studio that turns uncertainty into a single clear next step.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link href="/studio" className="btn-primary">
+                  Start a private entry
+                </Link>
+                <Link href="#how-it-works" className="btn-outline">
+                  See how it works
+                </Link>
               </div>
-              <span className="text-[10px] uppercase tracking-[0.2em]">
-                Private · Not shared
-              </span>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,94,106,0.3)] transition hover:translate-y-[-1px] hover:shadow-[0_16px_40px_rgba(15,94,106,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleCreate}
-                disabled={isSaving || !body.trim() || (isEditingExisting && !isDirty)}
-              >
-                {isSaving
-                  ? "Saving..."
-                  : isEditingExisting
-                    ? "Update entry"
-                    : "Save entry"}
-              </button>
-              <button
-                className="rounded-full border border-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleReflect}
-                disabled={isReflecting || !selectedEntry}
-              >
-                {isReflecting ? "Reflecting..." : "Run reflection"}
-              </button>
-              <button
-                className="rounded-full border border-[var(--stroke)] px-5 py-2 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                onClick={handleNewEntry}
-              >
-                New entry
-              </button>
-              {error && (
-                <span className="text-sm text-[var(--accent-2)]">{error}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-[var(--font-display)] text-lg font-semibold">
-                  Past entries
-                </h2>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                  Latest first
-                </p>
+              <div className="flex flex-wrap gap-3">
+                {OUTCOMES.map((item) => (
+                  <span key={item} className="chip">
+                    {item}
+                  </span>
+                ))}
               </div>
-              <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                {entries.length} total
-              </span>
             </div>
-            <div className="mt-5 grid gap-3 border-l border-[var(--stroke)] pl-6 sm:grid-cols-2">
-              {entries.length === 0 && (
-                <p className="text-sm text-[var(--muted)] sm:col-span-2">
-                  No entries yet. Start with a real thought.
-                </p>
-              )}
-              {entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  onClick={() => loadEntry(entry.id)}
-                  className={`relative flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
-                    selectedEntry?.id === entry.id
-                      ? "border-[var(--accent)] bg-[var(--card-2)] shadow-[0_20px_50px_rgba(20,23,27,0.12)]"
-                      : "border-transparent bg-[var(--card-2)] hover:border-[var(--stroke)] hover:bg-white"
-                  }`}
-                >
-                  <span className="absolute -left-[34px] top-6 h-3 w-3 rounded-full border border-[var(--stroke)] bg-[var(--card)]" />
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <span className="text-sm font-semibold">
-                        {entry.title || "Untitled entry"}
-                      </span>
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        {formatDate(entry.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-[var(--stroke)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                        {entry.status}
-                      </span>
-                      <span className="rounded-full border border-[var(--stroke)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                        {entry.wordCount} words
-                      </span>
-                      <button
-                        className="text-xs font-semibold text-[var(--muted)] transition hover:text-[var(--accent)]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDeleteTarget(entry);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="card-soft overflow-hidden p-3">
+              <div className="overflow-hidden rounded-2xl border border-[var(--stroke)] bg-white/60">
+                <img
+                  src="/landing-hero.jpg"
+                  alt="Private Blogging Intelligence preview"
+                  className="h-[300px] w-full object-cover"
+                  style={{ objectPosition: "70% 60%" }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs uppercase tracking-[0.25em] text-[var(--muted)]">
+                <span>Studio preview</span>
+                <span>Calm workspace</span>
+              </div>
             </div>
           </div>
         </section>
+      </header>
 
-        <section className="flex flex-col gap-6">
-          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="font-[var(--font-display)] text-xl font-semibold">
-                  Reflection
-                </h2>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  Each agent responds independently. Read slowly.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(["all", "editor", "definer", "risk", "skeptic", "coach"] as const).map(
-                  (agent) => (
-                    <button
-                      key={agent}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition flex items-center gap-2 ${
-                        agentFilter === agent
-                          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                          : "border-[var(--stroke)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                      }`}
-                      onClick={() => setAgentFilter(agent)}
-                    >
-                      {agent !== "all" && (
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: AGENT_META[agent].accent }}
-                        />
-                      )}
-                      {agent === "all" ? "All" : AGENT_META[agent].label}
-                      {agent !== "all" && (
-                        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                          {agentCounts[agent] ?? 0}
-                        </span>
-                      )}
-                    </button>
-                  )
-                )}
-              </div>
+      <main className="mx-auto mt-14 flex w-full max-w-6xl flex-col gap-14">
+        <section id="how-it-works" className="grid gap-6 lg:grid-cols-3">
+          {HOW_IT_WORKS.map((item, index) => (
+            <div key={item.title} className="card p-6 animate-rise">
+              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
+                Step {index + 1}
+              </p>
+              <h3 className="mt-3 font-[var(--font-display)] text-xl font-semibold">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-sm text-[var(--muted)]">{item.description}</p>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--muted)]">
-              {(["editor", "definer", "risk", "skeptic", "coach"] as const).map((agent) => (
-                <span
-                  key={agent}
-                  className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1"
-                >
-                  {AGENT_META[agent].label} · {AGENT_META[agent].role}
-                </span>
-              ))}
+          ))}
+        </section>
+
+        <section className="card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
+                The five agents
+              </p>
+              <h3 className="mt-2 font-[var(--font-display)] text-2xl font-semibold">
+                One line each. One clear signal.
+              </h3>
             </div>
+            <span className="tag">Focused</span>
           </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {AGENT_LINES.map((agent) => (
+              <div key={agent.name} className="card-soft p-4">
+                <p className="text-sm font-semibold">{agent.name}</p>
+                <p className="mt-2 text-sm text-[var(--muted)]">{agent.line}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {filteredFeedback.length === 0 && (
-            <div className="rounded-[28px] border border-dashed border-[var(--stroke)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
-              No feedback yet. Save an entry, then run reflection to see the agents.
-            </div>
-          )}
+        <section className="card flex flex-col gap-4 p-8 text-center">
+          <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
+            Ready to test it?
+          </p>
+          <h3 className="font-[var(--font-display)] text-3xl font-semibold">
+            Start an entry. Get a single signal.
+          </h3>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href="/studio" className="btn-primary">
+              Open the studio
+            </Link>
+            <Link href="/studio" className="btn-outline">
+              Run a reflection
+            </Link>
+          </div>
+        </section>
 
-          <div className="flex flex-col gap-5">
-            {filteredFeedback.map((item) => {
-              const sections = parseSections(item.content);
-              const summarySection = sections.find((section) =>
-                section.title.toUpperCase().includes("SUMMARY")
-              );
-              const preview = summarySection?.body || getPreviewLine(item.content);
-              const meta = AGENT_META[item.agent];
-
-              return (
-                <details
-                  key={`${item.entryId}-${item.agent}`}
-                  className="group rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)] animate-rise"
-                  style={{ background: `linear-gradient(180deg, ${meta.tint}, transparent 40%)` }}
-                >
-                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="h-10 w-10 rounded-2xl border border-[var(--stroke)]"
-                          style={{ background: meta.accent }}
-                        />
-                        <div>
-                          <h3 className="font-[var(--font-display)] text-lg font-semibold">
-                            {meta.label}
-                          </h3>
-                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                            {meta.role}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-                      <div className="text-right">
-                        <p>{formatDate(item.createdAt)}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                          {item.promptVersion || "local"} · {item.model || "model"}
-                        </p>
-                      </div>
-                      <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
-                        <span className="group-open:hidden">Expand</span>
-                        <span className="hidden group-open:inline">Collapse</span>
-                      </span>
-                    </div>
-                  </summary>
-                  <div className="mt-4 text-sm text-[var(--muted)]">
-                    {preview}
-                  </div>
-                  <div className="mt-5 border-t border-[var(--stroke)] pt-5">
-                    <div className="flex flex-col gap-4">
-                      {sections.map((section) => (
-                        <div
-                          key={`${item.agent}-${section.title}`}
-                          className="rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] p-4"
-                        >
-                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                            {section.title}
-                          </p>
-                          <div className="mt-3 text-sm text-[var(--muted)]">
-                            {renderMarkdown(section.body)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </details>
-              );
-            })}
+        <section className="flex flex-col items-center gap-2 pb-6 text-center text-sm text-[var(--muted)]">
+          <span className="text-xs uppercase tracking-[0.4em]">
+            Crafted for calm decisions
+          </span>
+          <p className="text-base font-semibold text-[var(--ink)]">
+            By Haseeb Raza
+          </p>
+          <p className="text-xs">
+            Quiet thinking deserves a beautiful room.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 text-xs uppercase tracking-[0.25em]">
+            <a
+              className="tag transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              href="https://github.com/haseebraza715"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            <a
+              className="tag transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              href="https://www.linkedin.com/in/haseebraza715"
+              target="_blank"
+              rel="noreferrer"
+            >
+              LinkedIn
+            </a>
+            <a
+              className="tag transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              href="https://x.com/haseebraza715"
+              target="_blank"
+              rel="noreferrer"
+            >
+              X
+            </a>
           </div>
         </section>
       </main>
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4">
-          <div className="w-full max-w-md rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)]">
-            <h3 className="font-[var(--font-display)] text-lg font-semibold">
-              Delete entry?
-            </h3>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              This will permanently remove the entry and its feedback.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--muted)]"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
-                onClick={async () => {
-                  const target = deleteTarget;
-                  setDeleteTarget(null);
-                  if (target) {
-                    await handleDelete(target.id);
-                  }
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

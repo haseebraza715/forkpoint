@@ -4,6 +4,9 @@ import crypto from "crypto";
 import { ObjectId, getDb } from "@/lib/mongodb";
 import { PROMPT_VERSION } from "@/lib/prompts";
 import { buildTranscript, runEval, type EvalResult } from "@/lib/eval";
+import { isEvalEnabled } from "@/lib/eval-mode";
+
+export const runtime = "nodejs";
 
 type EvalRequest = {
   entryId: string;
@@ -12,7 +15,7 @@ type EvalRequest = {
 
 export async function POST(request: Request) {
   try {
-    if (process.env.EVAL_MODE !== "true") {
+    if (!isEvalEnabled()) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

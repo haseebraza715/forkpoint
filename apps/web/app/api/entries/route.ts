@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { formatDbError } from "@/lib/api-errors";
 import { getDb } from "@/lib/mongodb";
+
+export const runtime = "nodejs";
 
 function countWords(text: string) {
   const trimmed = text.trim();
@@ -11,39 +14,44 @@ function countWords(text: string) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const limitParam = searchParams.get("limit");
-  const limit = Math.min(Number(limitParam ?? 50) || 50, 200);
+  try {
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
+    const limit = Math.min(Number(limitParam ?? 50) || 50, 200);
 
-  const db = await getDb();
-  const entries = await db
-    .collection("entries")
-    .find(
-      {},
-      {
-        projection: {
-          title: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          status: 1,
-          wordCount: 1
+    const db = await getDb();
+    const entries = await db
+      .collection("entries")
+      .find(
+        {},
+        {
+          projection: {
+            title: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            status: 1,
+            wordCount: 1
+          }
         }
-      }
-    )
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .toArray();
+      )
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
 
-  const mappedEntries = entries.map((entry) => ({
-    id: entry._id.toString(),
-    title: entry.title ?? null,
-    createdAt: entry.createdAt,
-    updatedAt: entry.updatedAt,
-    status: entry.status,
-    wordCount: entry.wordCount
-  }));
+    const mappedEntries = entries.map((entry) => ({
+      id: entry._id.toString(),
+      title: entry.title ?? null,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      status: entry.status,
+      wordCount: entry.wordCount
+    }));
 
-  return NextResponse.json({ entries: mappedEntries });
+    return NextResponse.json({ entries: mappedEntries });
+  } catch (error) {
+    const message = formatDbError(error, "Failed to load entries.");
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -65,11 +73,16 @@ export async function POST(request: Request) {
     wordCount: countWords(entryBody)
   };
 
-  const db = await getDb();
-  const result = await db.collection("entries").insertOne(entry);
+  try {
+    const db = await getDb();
+    const result = await db.collection("entries").insertOne(entry);
 
-  return NextResponse.json({
-    entryId: result.insertedId.toString(),
-    entry: { id: result.insertedId.toString(), ...entry }
-  });
+    return NextResponse.json({
+      entryId: result.insertedId.toString(),
+      entry: { id: result.insertedId.toString(), ...entry }
+    });
+  } catch (error) {
+    const message = formatDbError(error, "Could not save entry.");
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

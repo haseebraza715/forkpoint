@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { getDb } from "@/lib/mongodb";
+import { isEvalEnabled } from "@/lib/eval-mode";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    if (process.env.EVAL_MODE !== "true") {
+    if (!isEvalEnabled()) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
