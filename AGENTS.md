@@ -7,6 +7,13 @@
 - `apps/web/reflections`: JSON snapshots per entry (`<entryId>.json`) for audit/backups.
 - `apps/web/scripts` and `apps/web/eval`: evaluation tooling for reflection quality.
 
+## Agents
+- `editor`: clarity and structure.
+- `definer`: operational definitions and boundaries.
+- `risk`: privacy/reputation/permanence risks.
+- `skeptic`: stress-test the core claim.
+- `coach`: concrete options and a single recommendation.
+
 ## Build, Test, and Development Commands
 Run from `apps/web`:
 - `npm run dev`: start the local dev server at `http://localhost:3000`.
@@ -32,7 +39,11 @@ Run from `apps/web`:
 ## Security & Configuration Tips
 - Local config lives in `apps/web/.env.local` (MongoDB and OpenRouter settings). Do not commit secrets.
 - Reflection snapshots contain user content; treat `apps/web/reflections` as sensitive local data.
+- Optional per-agent model overrides:
+  - `OPENROUTER_MODEL_EDITOR`, `OPENROUTER_MODEL_DEFINER`, `OPENROUTER_MODEL_RISK`, `OPENROUTER_MODEL_SKEPTIC`, `OPENROUTER_MODEL_COACH`
+  - `OPENROUTER_MAX_TOKENS_EDITOR`, `OPENROUTER_MAX_TOKENS_DEFINER`, `OPENROUTER_MAX_TOKENS_RISK`, `OPENROUTER_MAX_TOKENS_SKEPTIC`, `OPENROUTER_MAX_TOKENS_COACH`
 
 ## Agent-Specific Notes
 - If you change agent prompts or output formats, update `apps/web/lib/prompts.ts` and verify eval scripts still pass.
 - Reflection output is read-only by design; avoid adding conversational UI unless the product direction changes.
+- Eval prompt lives in `apps/web/eval/eval-prompt.txt`; keep agent lists in sync with `prompts.ts` and `lib/eval-utils`.
