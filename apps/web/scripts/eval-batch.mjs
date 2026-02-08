@@ -9,7 +9,8 @@ import {
   sanitizeViolations,
   validateEvalResult,
   buildTranscriptFromFeedback,
-  tryParseJSON
+  tryParseJSON,
+  ensureEvidenceInTranscript
 } from "../lib/eval-utils.mjs";
 
 dotenv.config({ path: path.join(process.cwd(), ".env.local") });
@@ -44,6 +45,7 @@ async function callOpenRouter(prompt, transcript, extraInstruction) {
     throw new Error("OPENROUTER_EVAL_MODEL or OPENROUTER_MODEL is not set");
   }
 
+  const maxTokens = Number(process.env.OPENROUTER_EVAL_MAX_TOKENS || 2000);
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -59,7 +61,7 @@ async function callOpenRouter(prompt, transcript, extraInstruction) {
     body: JSON.stringify({
       model,
       temperature: 0.2,
-      max_tokens: 2000,
+      max_tokens: Number.isFinite(maxTokens) ? maxTokens : 2000,
       messages: [
         { role: "system", content: prompt },
         {
@@ -131,7 +133,7 @@ async function run() {
     let parsed;
     try {
       parsed = tryParseJSON(content);
-    } catch (error) {
+    } catch {
       failures.push({ entryId: entryId.toString(), reason: "Invalid JSON" });
       continue;
     }
@@ -146,6 +148,7 @@ async function run() {
       fullTranscript: transcript
     };
 
+    ensureEvidenceInTranscript(result, transcript);
     const validation = validateEval(result, transcript);
     if (!validation.ok) {
       const { content: retryContent } = await callOpenRouter(
@@ -155,7 +158,7 @@ async function run() {
       );
       try {
         parsed = tryParseJSON(retryContent);
-      } catch (error) {
+      } catch {
         failures.push({
           entryId: entryId.toString(),
           reason: "Invalid JSON after retry"
@@ -171,6 +174,7 @@ async function run() {
         timestamp: parsed.timestamp || new Date().toISOString(),
         fullTranscript: transcript
       };
+      ensureEvidenceInTranscript(retryResult, transcript);
       const retryValidation = validateEval(retryResult, transcript);
       if (!retryValidation.ok) {
         failures.push({

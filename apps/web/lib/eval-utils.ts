@@ -62,7 +62,7 @@ export const ALLOWED_VIOLATIONS = new Set([
 /**
  * Required agents that must have eval entries.
  */
-export const REQUIRED_AGENTS = ["editor", "definer", "skeptic", "coach"] as const;
+export const REQUIRED_AGENTS = ["editor", "definer", "risk", "skeptic", "coach"] as const;
 
 /**
  * Violation severity weights for score calculation.

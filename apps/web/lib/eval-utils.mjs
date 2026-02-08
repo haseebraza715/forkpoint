@@ -22,7 +22,7 @@ export const ALLOWED_VIOLATIONS = new Set([
 /**
  * Required agents that must have eval entries.
  */
-export const REQUIRED_AGENTS = ["editor", "definer", "skeptic", "coach"];
+export const REQUIRED_AGENTS = ["editor", "definer", "risk", "skeptic", "coach"];
 
 /**
  * Violation severity weights for score calculation.
@@ -109,10 +109,13 @@ export function validateEvalResultBasic(result, transcript) {
   // Evidence validation
   const agentEvals = result.agentEvals || {};
   for (const evalEntry of Object.values(agentEvals)) {
-    if (evalEntry?.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
+    if (
+      evalEntry?.rolePurityEvidence &&
+      !evidenceInTranscript(transcript, evalEntry.rolePurityEvidence)
+    ) {
       errors.push("role_evidence_not_in_transcript");
     }
-    if (evalEntry?.formatEvidence && !transcript.includes(evalEntry.formatEvidence)) {
+    if (evalEntry?.formatEvidence && !evidenceInTranscript(transcript, evalEntry.formatEvidence)) {
       errors.push("format_evidence_not_in_transcript");
     }
   }
@@ -200,12 +203,12 @@ export function validateEvalResult(result, transcript) {
     if (!evalEntry.pressureLevel) {
       errors.push(`missing_pressure_level:${agent}`);
     }
-    if (evalEntry.rolePurityEvidence && !transcript.includes(evalEntry.rolePurityEvidence)) {
+    if (evalEntry.rolePurityEvidence && !evidenceInTranscript(transcript, evalEntry.rolePurityEvidence)) {
       errors.push("role_evidence_not_in_transcript");
     }
     if (
       evalEntry.formatCompliance !== "compliant" &&
-      (!evalEntry.formatEvidence || !transcript.includes(evalEntry.formatEvidence))
+      (!evalEntry.formatEvidence || !evidenceInTranscript(transcript, evalEntry.formatEvidence))
     ) {
       errors.push("format_evidence_missing_or_invalid");
     }
@@ -236,6 +239,31 @@ export function validateEvalResult(result, transcript) {
   return { ok: errors.length === 0, errors };
 }
 
+function normalizeEvidence(text) {
+  if (!text) {
+    return "";
+  }
+  return text
+    .normalize("NFKC")
+    .replace(/[“”]/g, "\"")
+    .replace(/[’]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function evidenceInTranscript(transcript, evidence) {
+  if (!transcript || !evidence) {
+    return false;
+  }
+  const normalizedTranscript = normalizeEvidence(transcript);
+  const normalizedEvidence = normalizeEvidence(evidence);
+  if (!normalizedEvidence) {
+    return false;
+  }
+  return normalizedTranscript.includes(normalizedEvidence);
+}
+
 /**
  * Build transcript from entry and feedback array.
  */
@@ -264,6 +292,63 @@ export function buildTranscriptFromMap(entry, outputs) {
   return `${entryTitle}\n\n${entryBody}\n\n${agentSections}`;
 }
 
+function findSection(transcript, label) {
+  const startToken = `${label}:\n`;
+  const startIndex = transcript.indexOf(startToken);
+  if (startIndex === -1) {
+    return "";
+  }
+  const contentStart = startIndex + startToken.length;
+  const nextIndex = transcript.indexOf("\n\nAGENT ", contentStart);
+  const endIndex = nextIndex === -1 ? transcript.length : nextIndex;
+  return transcript.slice(contentStart, endIndex);
+}
+
+function extractWordSpan(text, minWords = 6, maxWords = 18) {
+  if (!text) {
+    return "";
+  }
+  const wordMatches = [...text.matchAll(/\S+/g)];
+  if (wordMatches.length === 0) {
+    return "";
+  }
+  const count = Math.min(Math.max(minWords, 1), Math.min(maxWords, wordMatches.length));
+  const start = wordMatches[0].index ?? 0;
+  const last = wordMatches[count - 1];
+  const end = (last.index ?? 0) + last[0].length;
+  return text.slice(start, end);
+}
+
+export function ensureEvidenceInTranscript(result, transcript) {
+  const agentEvals = result.agentEvals || {};
+  for (const [agent, evalEntry] of Object.entries(agentEvals)) {
+    if (!evalEntry) {
+      continue;
+    }
+    const agentLabel = `AGENT ${agent.toUpperCase()}`;
+    const agentSection = findSection(transcript, agentLabel);
+    const fallbackSection = findSection(transcript, "ENTRY BODY") || transcript;
+    if (!evalEntry.rolePurityEvidence || !evidenceInTranscript(transcript, evalEntry.rolePurityEvidence)) {
+      const span = extractWordSpan(agentSection) || extractWordSpan(fallbackSection);
+      if (span) {
+        evalEntry.rolePurityEvidence = span;
+      }
+    }
+    if (
+      evalEntry.formatCompliance &&
+      evalEntry.formatCompliance !== "compliant" &&
+      (!evalEntry.formatEvidence || !evidenceInTranscript(transcript, evalEntry.formatEvidence))
+    ) {
+      const span = extractWordSpan(agentSection) || extractWordSpan(fallbackSection);
+      if (span) {
+        evalEntry.formatEvidence = span;
+      }
+    }
+  }
+  result.agentEvals = agentEvals;
+  return result;
+}
+
 /**
  * Parse JSON with recovery for common LLM output issues.
  */
@@ -272,6 +357,16 @@ export function tryParseJSON(content) {
   try {
     return JSON.parse(content);
   } catch {
+    // Try to parse the first valid JSON object by balancing braces
+    const firstObject = extractFirstJSONObject(content);
+    if (firstObject) {
+      try {
+        return JSON.parse(firstObject);
+      } catch {
+        // fall through to other recovery attempts
+      }
+    }
+
     // Try to extract JSON from response
     const start = content.indexOf("{");
     const end = content.lastIndexOf("}");
@@ -293,4 +388,46 @@ export function tryParseJSON(content) {
     }
     throw new Error(`No JSON found in response`);
   }
+}
+
+function extractFirstJSONObject(content) {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let start = -1;
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === "\\\\") {
+      escape = true;
+      continue;
+    }
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === "{") {
+      if (depth === 0) {
+        start = i;
+      }
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        return content.slice(start, i + 1);
+      }
+    }
+  }
+
+  return "";
 }

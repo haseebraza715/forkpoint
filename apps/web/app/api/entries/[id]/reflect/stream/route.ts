@@ -2,10 +2,16 @@ import { NextResponse } from "next/server";
 
 import { ObjectId, getDb } from "@/lib/mongodb";
 import { callOpenRouter } from "@/lib/openrouter";
+import {
+  getAgentMaxTokens,
+  getAgentModel,
+  getAgentModelEnvKey,
+  getMissingAgentModels
+} from "@/lib/model-config";
 import { PROMPT_VERSION, PROMPTS, SHARED_RULES } from "@/lib/prompts";
 import { writeReflectionSnapshot } from "@/lib/reflection-store";
 
-const AGENTS = ["editor", "definer", "skeptic", "coach"] as const;
+const AGENTS = ["editor", "definer", "risk", "skeptic", "coach"] as const;
 
 type AgentName = (typeof AGENTS)[number];
 
@@ -44,10 +50,19 @@ export async function POST(_request: Request, { params }: RouteParams) {
           return;
         }
 
-        const model = process.env.OPENROUTER_MODEL;
-        if (!model) {
+        const missingModels = getMissingAgentModels(AGENTS);
+        if (missingModels.length > 0) {
+          const hintKeys = Array.from(
+            new Set(missingModels.map((agent) => getAgentModelEnvKey(agent)))
+          );
           controller.enqueue(
-            encoder.encode(jsonLine({ type: "error", message: "OPENROUTER_MODEL is not set" }))
+            encoder.encode(
+              jsonLine({
+                type: "error",
+                message: `Missing OpenRouter model for agents: ${missingModels.join(", ")}`,
+                hint: `Set ${hintKeys.join(", ")}`
+              })
+            )
           );
           controller.close();
           return;
@@ -91,10 +106,13 @@ export async function POST(_request: Request, { params }: RouteParams) {
             continue;
           }
 
+          const model = getAgentModel(agent) as string;
           const systemPrompt = `${SHARED_RULES}\n\n${PROMPTS[agent]}`;
+          const max_tokens = getAgentMaxTokens(agent);
           const content = await callOpenRouter({
             model,
             temperature: 0.4,
+            ...(max_tokens ? { max_tokens } : {}),
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userText }
