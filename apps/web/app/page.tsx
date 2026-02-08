@@ -1,8 +1,9 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Entry = {
   id: string;
@@ -17,18 +18,47 @@ type Entry = {
 type Feedback = {
   id?: string;
   entryId: string;
-  agent: "editor" | "definer" | "skeptic" | "coach";
+  agent: "editor" | "definer" | "skeptic" | "coach" | "risk";
   content: string;
   createdAt: string;
   model?: string;
   promptVersion?: string;
 };
 
-const AGENT_META: Record<Feedback["agent"], { label: string; role: string }> = {
-  editor: { label: "Editor", role: "Clarity" },
-  definer: { label: "Definer", role: "Definitions" },
-  skeptic: { label: "Skeptic", role: "Logic" },
-  coach: { label: "Coach", role: "Direction" }
+const AGENT_META: Record<
+  Feedback["agent"],
+  { label: string; role: string; accent: string; tint: string }
+> = {
+  editor: {
+    label: "Editor",
+    role: "Clarity",
+    accent: "#7a4f2b",
+    tint: "rgba(122,79,43,0.08)"
+  },
+  definer: {
+    label: "Definer",
+    role: "Definitions",
+    accent: "#2f6f73",
+    tint: "rgba(47,111,115,0.08)"
+  },
+  risk: {
+    label: "Risk",
+    role: "Safeguards",
+    accent: "#9b2c2c",
+    tint: "rgba(155,44,44,0.08)"
+  },
+  skeptic: {
+    label: "Skeptic",
+    role: "Logic",
+    accent: "#2d4f6f",
+    tint: "rgba(45,79,111,0.08)"
+  },
+  coach: {
+    label: "Coach",
+    role: "Direction",
+    accent: "#7a3f5f",
+    tint: "rgba(122,63,95,0.08)"
+  }
 };
 
 function formatDate(value: string) {
@@ -46,6 +76,41 @@ function getPreviewLine(content: string) {
     .map((line) => line.trim())
     .filter(Boolean);
   return lines[0] ?? "No content returned.";
+}
+
+function countWords(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return 0;
+  }
+  return trimmed.split(/\s+/).length;
+}
+
+function parseSections(content: string) {
+  const lines = content.split("\n");
+  const sections: Array<{ title: string; body: string }> = [];
+  let current: { title: string; lines: string[] } | null = null;
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^([A-Z][A-Z ]+):\s*$/);
+    if (headingMatch) {
+      if (current) {
+        sections.push({ title: current.title, body: current.lines.join("\n").trim() });
+      }
+      current = { title: headingMatch[1], lines: [] };
+      continue;
+    }
+    if (!current) {
+      current = { title: "Output", lines: [] };
+    }
+    current.lines.push(line);
+  }
+
+  if (current) {
+    sections.push({ title: current.title, body: current.lines.join("\n").trim() });
+  }
+
+  return sections.filter((section) => section.body.length > 0);
 }
 
 export default function Home() {
@@ -66,9 +131,10 @@ export default function Home() {
   const isDirty = selectedEntry
     ? title !== (selectedEntry.title ?? "") || body !== (selectedEntry.body ?? "")
     : true;
+  const liveWordCount = useMemo(() => countWords(body), [body]);
 
   const sortedFeedback = useMemo(() => {
-    const order = { editor: 0, definer: 1, skeptic: 2, coach: 3 };
+    const order = { editor: 0, definer: 1, risk: 2, skeptic: 3, coach: 4 };
     return [...feedback].sort((a, b) => order[a.agent] - order[b.agent]);
   }, [feedback]);
 
@@ -79,11 +145,17 @@ export default function Home() {
     return sortedFeedback.filter((item) => item.agent === agentFilter);
   }, [agentFilter, sortedFeedback]);
 
-  useEffect(() => {
-    void loadEntries();
-  }, []);
+  const agentCounts = useMemo(() => {
+    return sortedFeedback.reduce(
+      (acc, item) => {
+        acc[item.agent] = (acc[item.agent] || 0) + 1;
+        return acc;
+      },
+      {} as Record<Feedback["agent"], number>
+    );
+  }, [sortedFeedback]);
 
-  async function loadEntries() {
+  const loadEntries = useCallback(async function loadEntries() {
     setError(null);
     const response = await fetch("/api/entries");
     if (!response.ok) {
@@ -93,7 +165,11 @@ export default function Home() {
     }
     const data = (await response.json()) as { entries: Entry[] };
     setEntries(data.entries ?? []);
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadEntries();
+  }, [loadEntries]);
 
   async function loadEntry(entryId: string) {
     setError(null);
@@ -298,29 +374,29 @@ export default function Home() {
 
   return (
     <div className="min-h-screen px-6 py-12 text-[var(--ink)] md:px-12">
-      <header className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+      <header className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
-              Private reflection workspace
+            <p className="text-xs uppercase tracking-[0.4em] text-[var(--muted)]">
+              Private reflection suite
             </p>
             <h1 className="mt-2 font-[var(--font-display)] text-3xl font-semibold tracking-tight md:text-4xl">
-              AI Private Blogging Feedback
+              Private Blogging Intelligence
             </h1>
           </div>
           <div className="rounded-full border border-[var(--stroke)] bg-[var(--card)] px-4 py-2 text-xs text-[var(--muted)] shadow-[var(--shadow-card)]">
-            Three agents. One truth.
+            Five agents. One signal.
           </div>
         </div>
         <p className="max-w-3xl text-base text-[var(--muted)] md:text-lg">
-          Write something real. Reflect with Editor, Skeptic, and Coach. Clarity
-          over noise.
+          Write with precision. Reflect with Editor, Definer, Risk, Skeptic, and
+          Coach. Clarity over noise.
         </p>
       </header>
 
-      <main className="mx-auto mt-10 grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
+      <main className="mx-auto mt-10 flex w-full max-w-6xl flex-col gap-8">
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
             <div className="flex items-center justify-between">
               <h2 className="font-[var(--font-display)] text-xl font-semibold">
                 New entry
@@ -331,23 +407,46 @@ export default function Home() {
                 </span>
               )}
             </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.25em] text-[var(--muted)]">
+              {(["editor", "definer", "risk", "skeptic", "coach"] as const).map((agent) => (
+                <span
+                  key={agent}
+                  className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1"
+                >
+                  {AGENT_META[agent].label}
+                </span>
+              ))}
+            </div>
             <div className="mt-5 flex flex-col gap-4">
               <input
-                className="w-full rounded-2xl border border-[var(--stroke)] bg-white/70 px-4 py-3 text-sm outline-none transition focus:border-[var(--accent)]"
+                className="w-full rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] px-4 py-3 text-sm outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
                 placeholder="Optional title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
               />
               <textarea
-                className="min-h-[220px] w-full resize-none rounded-2xl border border-[var(--stroke)] bg-white/80 px-4 py-4 text-sm leading-relaxed outline-none transition focus:border-[var(--accent)]"
+                className="min-h-[240px] w-full resize-none rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] px-4 py-4 text-sm leading-relaxed outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
                 placeholder="Write with honesty. No formatting. No performance."
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
               />
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--muted)]">
+              <div className="flex items-center gap-3">
+                <span className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1 uppercase tracking-[0.2em] text-[10px]">
+                  {liveWordCount} words
+                </span>
+                <span className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1 uppercase tracking-[0.2em] text-[10px]">
+                  {isDirty ? "Unsaved" : "Saved"}
+                </span>
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.2em]">
+                Private · Not shared
+              </span>
+            </div>
             <div className="mt-5 flex flex-wrap gap-3">
               <button
-                className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,94,106,0.3)] transition hover:translate-y-[-1px] hover:shadow-[0_16px_40px_rgba(15,94,106,0.35)] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleCreate}
                 disabled={isSaving || !body.trim() || (isEditingExisting && !isDirty)}
               >
@@ -362,7 +461,7 @@ export default function Home() {
                 onClick={handleReflect}
                 disabled={isReflecting || !selectedEntry}
               >
-                {isReflecting ? "Reflecting..." : "Reflect"}
+                {isReflecting ? "Reflecting..." : "Run reflection"}
               </button>
               <button
                 className="rounded-full border border-[var(--stroke)] px-5 py-2 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
@@ -376,7 +475,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[var(--stroke)] bg-white/70 p-6 shadow-[var(--shadow-card)] animate-rise">
+          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-[var(--font-display)] text-lg font-semibold">
@@ -390,9 +489,9 @@ export default function Home() {
                 {entries.length} total
               </span>
             </div>
-            <div className="mt-5 flex flex-col gap-3 border-l border-[var(--stroke)] pl-6">
+            <div className="mt-5 grid gap-3 border-l border-[var(--stroke)] pl-6 sm:grid-cols-2">
               {entries.length === 0 && (
-                <p className="text-sm text-[var(--muted)]">
+                <p className="text-sm text-[var(--muted)] sm:col-span-2">
                   No entries yet. Start with a real thought.
                 </p>
               )}
@@ -402,8 +501,8 @@ export default function Home() {
                   onClick={() => loadEntry(entry.id)}
                   className={`relative flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
                     selectedEntry?.id === entry.id
-                      ? "border-[var(--accent)] bg-[var(--card)] shadow-[0_20px_50px_rgba(54,31,17,0.08)]"
-                      : "border-transparent bg-white/60 hover:border-[var(--stroke)] hover:bg-white/80"
+                      ? "border-[var(--accent)] bg-[var(--card-2)] shadow-[0_20px_50px_rgba(20,23,27,0.12)]"
+                      : "border-transparent bg-[var(--card-2)] hover:border-[var(--stroke)] hover:bg-white"
                   }`}
                 >
                   <span className="absolute -left-[34px] top-6 h-3 w-3 rounded-full border border-[var(--stroke)] bg-[var(--card)]" />
@@ -441,7 +540,7 @@ export default function Home() {
         </section>
 
         <section className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
+          <div className="rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] animate-rise">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="font-[var(--font-display)] text-xl font-semibold">
@@ -452,61 +551,121 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {(["all", "editor", "definer", "skeptic", "coach"] as const).map(
+                {(["all", "editor", "definer", "risk", "skeptic", "coach"] as const).map(
                   (agent) => (
                     <button
                       key={agent}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition flex items-center gap-2 ${
                         agentFilter === agent
                           ? "border-[var(--accent)] bg-[var(--accent)] text-white"
                           : "border-[var(--stroke)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
                       }`}
                       onClick={() => setAgentFilter(agent)}
                     >
+                      {agent !== "all" && (
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: AGENT_META[agent].accent }}
+                        />
+                      )}
                       {agent === "all" ? "All" : AGENT_META[agent].label}
+                      {agent !== "all" && (
+                        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+                          {agentCounts[agent] ?? 0}
+                        </span>
+                      )}
                     </button>
                   )
                 )}
               </div>
             </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--muted)]">
+              {(["editor", "definer", "risk", "skeptic", "coach"] as const).map((agent) => (
+                <span
+                  key={agent}
+                  className="rounded-full border border-[var(--stroke)] bg-[var(--card-2)] px-3 py-1"
+                >
+                  {AGENT_META[agent].label} · {AGENT_META[agent].role}
+                </span>
+              ))}
+            </div>
           </div>
 
           {filteredFeedback.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-[var(--stroke)] bg-white/70 p-6 text-sm text-[var(--muted)]">
-              No feedback yet. Save an entry, then click Reflect.
+            <div className="rounded-[28px] border border-dashed border-[var(--stroke)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
+              No feedback yet. Save an entry, then run reflection to see the agents.
             </div>
           )}
 
-          {filteredFeedback.map((item) => (
-            <details
-              key={`${item.entryId}-${item.agent}`}
-              className="group rounded-3xl border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[0_40px_90px_rgba(54,31,17,0.12)] animate-rise"
-            >
-              <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-[var(--font-display)] text-lg font-semibold">
-                    {AGENT_META[item.agent].label}
-                  </h3>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                    {AGENT_META[item.agent].role}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-                  <span>{formatDate(item.createdAt)}</span>
-                  <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
-                    <span className="group-open:hidden">Expand</span>
-                    <span className="hidden group-open:inline">Collapse</span>
-                  </span>
-                </div>
-              </summary>
-              <div className="mt-4 text-sm text-[var(--muted)] group-open:hidden">
-                {getPreviewLine(item.content)}
-              </div>
-              <div className="mt-5 border-t border-[var(--stroke)] pt-5">
-                {renderMarkdown(item.content)}
-              </div>
-            </details>
-          ))}
+          <div className="flex flex-col gap-5">
+            {filteredFeedback.map((item) => {
+              const sections = parseSections(item.content);
+              const summarySection = sections.find((section) =>
+                section.title.toUpperCase().includes("SUMMARY")
+              );
+              const preview = summarySection?.body || getPreviewLine(item.content);
+              const meta = AGENT_META[item.agent];
+
+              return (
+                <details
+                  key={`${item.entryId}-${item.agent}`}
+                  className="group rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)] animate-rise"
+                  style={{ background: `linear-gradient(180deg, ${meta.tint}, transparent 40%)` }}
+                >
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-10 w-10 rounded-2xl border border-[var(--stroke)]"
+                          style={{ background: meta.accent }}
+                        />
+                        <div>
+                          <h3 className="font-[var(--font-display)] text-lg font-semibold">
+                            {meta.label}
+                          </h3>
+                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                            {meta.role}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+                      <div className="text-right">
+                        <p>{formatDate(item.createdAt)}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+                          {item.promptVersion || "local"} · {item.model || "model"}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
+                        <span className="group-open:hidden">Expand</span>
+                        <span className="hidden group-open:inline">Collapse</span>
+                      </span>
+                    </div>
+                  </summary>
+                  <div className="mt-4 text-sm text-[var(--muted)]">
+                    {preview}
+                  </div>
+                  <div className="mt-5 border-t border-[var(--stroke)] pt-5">
+                    <div className="flex flex-col gap-4">
+                      {sections.map((section) => (
+                        <div
+                          key={`${item.agent}-${section.title}`}
+                          className="rounded-2xl border border-[var(--stroke)] bg-[var(--card-2)] p-4"
+                        >
+                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                            {section.title}
+                          </p>
+                          <div className="mt-3 text-sm text-[var(--muted)]">
+                            {renderMarkdown(section.body)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
         </section>
       </main>
       {deleteTarget && (
