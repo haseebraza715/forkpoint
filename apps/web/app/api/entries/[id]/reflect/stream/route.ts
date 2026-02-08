@@ -11,6 +11,8 @@ import {
 import { PROMPT_VERSION, PROMPTS, SHARED_RULES } from "@/lib/prompts";
 import { writeReflectionSnapshot } from "@/lib/reflection-store";
 
+export const runtime = "nodejs";
+
 const AGENTS = ["editor", "definer", "risk", "skeptic", "coach"] as const;
 
 type AgentName = (typeof AGENTS)[number];

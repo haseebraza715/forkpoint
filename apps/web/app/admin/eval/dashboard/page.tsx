@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
+import { isEvalEnabled } from "@/lib/eval-mode";
 import EvalDashboard from "./EvalDashboard";
 
 export default function EvalDashboardPage() {
-  if (process.env.EVAL_MODE !== "true") {
+  if (!isEvalEnabled()) {
     notFound();
   }
 

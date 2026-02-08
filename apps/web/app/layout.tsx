@@ -15,6 +15,20 @@ const body = Literata({
 export const metadata: Metadata = {
   title: "AI Private Blogging Feedback",
   description: "Private writing with multi-agent reflection.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }]
+  },
+  openGraph: {
+    title: "Private Blogging Intelligence",
+    description: "Private writing with multi-agent reflection.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PBI" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Private Blogging Intelligence",
+    description: "Private writing with multi-agent reflection.",
+    images: ["/og-image.png"]
+  }
 };
 
 export default function RootLayout({

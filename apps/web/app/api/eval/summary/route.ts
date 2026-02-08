@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { getDb } from "@/lib/mongodb";
+import { isEvalEnabled } from "@/lib/eval-mode";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    if (process.env.EVAL_MODE !== "true") {
+    if (!isEvalEnabled()) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -231,19 +234,17 @@ export async function GET(request: Request) {
       .toArray();
 
     const recent = await evaluations
-      .find(
-        dateFilter,
-        {
-          projection: {
-            "result.entryId": 1,
-            "result.verdict": 1,
-            "result.overallScore": 1,
-            "result.timestamp": 1,
-            "result.promptVersion": 1,
-            "result.violations": 1
-          }
+      .find(dateFilter, {
+        projection: {
+          "result.entryId": 1,
+          "result.verdict": 1,
+          "result.overallScore": 1,
+          "result.timestamp": 1,
+          "result.promptVersion": 1,
+          "result.violations": 1,
+          "result.agentEvals": 1
         }
-      )
+      })
       .sort({ createdAt: -1 })
       .limit(20)
       .toArray();

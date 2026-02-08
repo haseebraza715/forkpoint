@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { formatDbError } from "@/lib/api-errors";
 import { ObjectId, getDb } from "@/lib/mongodb";
+
+export const runtime = "nodejs";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -58,7 +61,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ entry: mappedEntry, feedback: mappedFeedback });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = formatDbError(error, "Failed to load entry.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -111,7 +114,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       feedback: []
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = formatDbError(error, "Could not update entry.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -136,7 +139,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true, entryId: entryId.toString() });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = formatDbError(error, "Could not delete entry.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

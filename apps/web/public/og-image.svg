@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f5e6a" />
+      <stop offset="1" stop-color="#163b45" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f9f5ef" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#f9f5ef" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#f6f0e8" />
+  <rect x="80" y="80" width="1040" height="470" rx="48" fill="url(#bg)" />
+  <rect x="120" y="120" width="960" height="390" rx="40" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3" />
+  <rect x="80" y="80" width="1040" height="470" rx="48" fill="url(#glow)" />
+
+  <text x="600" y="330" text-anchor="middle" font-family="'Space Grotesk', 'Segoe UI', Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="12" fill="#f9f5ef">PBI</text>
+  <text x="600" y="400" text-anchor="middle" font-family="'Literata', 'Georgia', serif" font-size="28" letter-spacing="2" fill="rgba(249,245,239,0.8)">Private Blogging Intelligence</text>
+  <text x="600" y="450" text-anchor="middle" font-family="'Space Grotesk', 'Segoe UI', Arial, sans-serif" font-size="20" letter-spacing="6" fill="rgba(249,245,239,0.7)">FIVE AGENTS · ONE SIGNAL</text>
+</svg>
