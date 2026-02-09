@@ -521,8 +521,8 @@ export default function StudioPage() {
               <span className="tag">{entries.length} total</span>
             </div>
             <div
-              className={`mt-5 grid gap-3 border-l border-[var(--stroke)] pl-6 ${
-                showAllEntries ? "" : "max-h-[520px] overflow-y-auto pr-2"
+              className={`mt-5 grid gap-3 border-[var(--stroke)] md:border-l md:pl-6 ${
+                showAllEntries ? "" : "max-h-[520px] overflow-y-auto md:pr-2"
               }`}
             >
               {entries.length === 0 && (
@@ -540,10 +540,10 @@ export default function StudioPage() {
                       : "border-transparent bg-[var(--card-2)] hover:border-[var(--stroke)] hover:bg-white"
                   }`}
                 >
-                  <span className="absolute -left-[34px] top-6 h-3 w-3 rounded-full border border-[var(--stroke)] bg-[var(--card)]" />
+                  <span className="absolute -left-[34px] top-6 hidden h-3 w-3 rounded-full border border-[var(--stroke)] bg-[var(--card)] md:block" />
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold">
+                      <span className="text-sm font-semibold break-words">
                         {entry.title || "Untitled entry"}
                       </span>
                       <p className="mt-1 text-xs text-[var(--muted)]">

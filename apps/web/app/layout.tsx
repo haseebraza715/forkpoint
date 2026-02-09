@@ -38,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} antialiased`}>
+      <body className={`${display.variable} ${body.variable} antialiased overflow-x-hidden`}>
         {children}
       </body>
     </html>
