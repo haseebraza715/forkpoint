@@ -27,7 +27,7 @@ const AGENT_LINES = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen px-6 pb-16 pt-10 text-[var(--ink)] md:px-12">
+    <div className="min-h-screen px-5 pb-16 pt-14 text-[var(--ink)] sm:px-6 md:px-12">
       <header className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <nav className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -37,39 +37,39 @@ export default function LandingPage() {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/studio" className="btn-outline">
+          <div className="flex w-full items-center justify-center gap-3 sm:w-auto sm:justify-end">
+            <Link href="/studio" className="btn-outline w-full sm:w-auto text-center">
               Test the studio
             </Link>
-            <Link href="/studio" className="btn-primary">
+            <Link href="/studio" className="btn-primary w-full sm:w-auto text-center">
               Start now
             </Link>
           </div>
         </nav>
 
-        <section className="card p-8 md:p-10">
+        <section className="card p-6 md:p-10">
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.4em] text-[var(--muted)]">
+            <div className="flex max-w-full flex-col gap-5 text-center lg:text-left">
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.4em] text-[var(--muted)] lg:justify-start">
                 <span>Five agents. One signal.</span>
                 <span className="h-1 w-1 rounded-full bg-[var(--stroke)]" />
                 <span>Private by design</span>
               </div>
-              <h2 className="max-w-3xl font-[var(--font-display)] text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+              <h2 className="max-w-3xl font-[var(--font-display)] text-3xl font-semibold leading-tight tracking-tight sm:text-4xl md:text-5xl break-words">
                 Turn private writing into a decision you can trust.
               </h2>
-              <p className="max-w-2xl text-base text-[var(--muted)] md:text-lg">
+              <p className="max-w-2xl text-base text-[var(--muted)] md:text-lg break-words mx-auto lg:mx-0">
                 A calm reflection studio that turns uncertainty into a single clear next step.
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/studio" className="btn-primary">
+              <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
+                <Link href="/studio" className="btn-primary w-full sm:w-auto text-center">
                   Start a private entry
                 </Link>
-                <Link href="#how-it-works" className="btn-outline">
+                <Link href="#how-it-works" className="btn-outline w-full sm:w-auto text-center">
                   See how it works
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
                 {OUTCOMES.map((item) => (
                   <span key={item} className="chip">
                     {item}
@@ -82,7 +82,7 @@ export default function LandingPage() {
                 <img
                   src="/landing-hero.jpg"
                   alt="Private Blogging Intelligence preview"
-                  className="h-[300px] w-full object-cover"
+                  className="w-full object-cover h-[220px] sm:h-[260px] md:h-[300px]"
                   style={{ objectPosition: "70% 60%" }}
                 />
               </div>

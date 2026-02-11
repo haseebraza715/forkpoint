@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -170,7 +171,7 @@ export default function EvalPanel() {
                 <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                   Transcript
                 </p>
-                <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap text-xs text-[var(--ink)]">
+                <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words text-xs text-[var(--ink)]">
                   {evaluation.fullTranscript}
                 </pre>
               </div>
@@ -181,7 +182,7 @@ export default function EvalPanel() {
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 Raw JSON
               </p>
-              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-[var(--ink)]">
+              <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs text-[var(--ink)]">
                 {JSON.stringify(evaluation, null, 2)}
               </pre>
             </div>

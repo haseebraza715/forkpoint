@@ -413,7 +413,7 @@ export default function StudioPage() {
                 Capture the decision. Review the signal.
               </h2>
               <p className="mt-3 max-w-2xl text-sm text-[var(--muted)]">
-                Write clearly, then run reflection when the entry is ready.
+                Write your decision, then run a reflection when it feels ready.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -586,7 +586,7 @@ export default function StudioPage() {
                   Reflection
                 </h2>
                 <p className="mt-2 text-sm text-[var(--muted)]">
-                  Each agent responds independently. Filter by role.
+                  Five agents, five angles. Filter to focus.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -630,8 +630,8 @@ export default function StudioPage() {
           {filteredFeedback.length === 0 && (
             <div className="rounded-[28px] border border-dashed border-[var(--stroke)] bg-[var(--card)] p-6 text-sm text-[var(--muted)]">
               {selectedEntry
-                ? "No feedback yet. Run reflection to generate agent responses."
-                : "Select or save an entry to see reflections from the five agents."}
+                ? "No feedback yet. Run a reflection to see responses."
+                : "Save or select an entry to see reflections from the agents."}
             </div>
           )}
 
@@ -647,10 +647,10 @@ export default function StudioPage() {
               return (
                 <details
                   key={`${item.entryId}-${item.agent}`}
-                  className="group rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)] animate-rise"
+                  className="group w-full rounded-[28px] border border-[var(--stroke)] bg-[var(--card)] p-6 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)] animate-rise"
                   style={{ background: `linear-gradient(180deg, ${meta.tint}, transparent 40%)` }}
                 >
-                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
+                  <summary className="flex flex-wrap cursor-pointer list-none items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-3">
                         <span
@@ -669,10 +669,7 @@ export default function StudioPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
                       <div className="text-right">
-                        <p>{formatDate(item.createdAt)}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                          {item.promptVersion || "local"} · {item.model || "model"}
-                        </p>
+                        <p className="break-words">{formatDate(item.createdAt)}</p>
                       </div>
                       <span className="rounded-full border border-[var(--stroke)] px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
                         <span className="group-open:hidden">Expand</span>
@@ -680,7 +677,9 @@ export default function StudioPage() {
                       </span>
                     </div>
                   </summary>
-                  <div className="mt-4 text-sm text-[var(--muted)]">{preview}</div>
+                  <div className="mt-4 text-sm leading-relaxed text-[var(--muted)] break-words">
+                    {preview}
+                  </div>
                   <div className="mt-5 border-t border-[var(--stroke)] pt-5">
                     <div className="flex flex-col gap-4">
                       {sections.map((section) => (
@@ -691,7 +690,7 @@ export default function StudioPage() {
                           <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                             {section.title}
                           </p>
-                          <div className="mt-3 text-sm text-[var(--muted)]">
+                          <div className="mt-3 max-w-full text-sm leading-relaxed text-[var(--muted)] break-words">
                             {renderMarkdown(section.body)}
                           </div>
                         </div>
