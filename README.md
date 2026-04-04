@@ -1,4 +1,4 @@
-# Private Blogging Intelligence
+# multi-agent-reflection-engine
 
 Private writing workspace that produces structured, multi-agent reflection and evaluation. The system is intentionally non-social and focused on clarity, accountability, and auditability.
 
